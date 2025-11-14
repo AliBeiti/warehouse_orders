@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Order Submitted{% endblock %}
+
+{% block content %}
+<h2>Your Order</h2>
+
+{% if items %}
+  <ul>
+    {% for item in items %}
+      <li>{{ item.product.name }} — {{ item.quantity }}</li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No items found.</p>
+{% endif %}
+
+<p>Next step: CSV generation and sending to owner (coming tomorrow).</p>
+{% endblock %}

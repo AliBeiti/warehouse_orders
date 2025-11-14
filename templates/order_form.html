@@ -1,28 +1,45 @@
 {% extends "base.html" %}
 {% block title %}Order Form{% endblock %}
 
-{% block content %}
-<p class="muted">Products are shown in warehouse pick order.</p>
 
-<div class="grid">
-  {% for p in products %}
-    <div class="card">
+
+{% block content %}
+<h2>Order Form</h2>
+
+<form method="POST">
+  {% csrf_token %}
+
+  <div class="grid">
+    {% for p in products %}
+      <div class="card">
       <div class="imgbox">
-        {% if p.image %}
-          <img src="{{ p.image.url }}" alt="{{ p.name }}">
-        {% else %}
-          <div class="muted">No image</div>
-        {% endif %}
-      </div>
-      <div class="name">{{ p.name }}</div>
-      <div class="muted">
-        {% if p.code %}Code: {{ p.code }}<br>{% endif %}
-        {% if p.price %}Price: {{ p.price }}{% if p.unit %} / {{ p.unit }}{% endif %}{% endif %}
-      </div>
-      <!-- Tomorrow we'll add quantity inputs and a form -->
-    </div>
-  {% empty %}
-    <p>No active products yet.</p>
-  {% endfor %}
+  {% if p.image %}
+    <img src="{{ p.image.url }}" alt="{{ p.name }}">
+  {% else %}
+    <div class="muted">No image</div>
+  {% endif %}
 </div>
+
+        <div class="name">{{ p.name }}</div>
+
+        <div>
+          {% if p.code %}Code: {{ p.code }} <br>{% endif %}
+          {% if p.price %}Price: {{ p.price }} {% if p.unit %}/{{ p.unit }}{% endif %}{% endif %}
+        </div>
+
+        <div style="margin-top: 8px;">
+          <label>Quantity:</label>
+          <input type="number" name="qty_{{ p.id }}" min="0" value="0" style="width: 70px;">
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <button type="submit" style="margin-top:20px; padding:10px 20px; font-size:16px;">
+    Submit Order
+  </button>
+
+</form>
+
 {% endblock %}
+
