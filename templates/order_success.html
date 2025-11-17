@@ -4,15 +4,32 @@
 {% block content %}
 <h2>Your Order</h2>
 
+{% if order %}
+  <p><strong>Name:</strong> {{ order.customer_name }}</p>
+  {% if order.customer_phone %}<p><strong>Phone:</strong> {{ order.customer_phone }}</p>{% endif %}
+  {% if order.customer_email %}<p><strong>Email:</strong> {{ order.customer_email }}</p>{% endif %}
+  {% if order.customer_note %}<p><strong>Notes:</strong> {{ order.customer_note }}</p>{% endif %}
+{% endif %}
+
 {% if items %}
+  <h3>Items</h3>
   <ul>
     {% for item in items %}
-      <li>{{ item.product.name }} — {{ item.quantity }}</li>
+      <li>
+        {{ item.product.name }} — {{ item.quantity }}
+        {% if item.product.code %} (Code: {{ item.product.code }}){% endif %}
+      </li>
     {% endfor %}
   </ul>
+
+  <p>
+    <a href="{% url 'order_download_csv' %}"
+       style="display:inline-block; margin-top:10px; padding:8px 16px; border:1px solid #333; border-radius:6px; text-decoration:none;">
+      Download CSV for Warehouse
+    </a>
+  </p>
 {% else %}
   <p>No items found.</p>
 {% endif %}
-
-<p>Next step: CSV generation and sending to owner (coming tomorrow).</p>
 {% endblock %}
+

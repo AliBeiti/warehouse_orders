@@ -1,45 +1,88 @@
 {% extends "base.html" %}
 {% block title %}Order Form{% endblock %}
 
-
-
 {% block content %}
 <h2>Order Form</h2>
 
+{% if error_list %}
+  <ul style="color: red;">
+    {% for e in error_list %}
+      <li>{{ e }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
 <form method="POST">
   {% csrf_token %}
+  <fieldset style="margin-bottom: 16px; padding: 12px; border: 1px solid #ccc; border-radius: 8px;">
+    <legend>Customer information</legend>
 
-  <div class="grid">
-    {% for p in products %}
-      <div class="card">
-      <div class="imgbox">
-  {% if p.image %}
-    <img src="{{ p.image.url }}" alt="{{ p.name }}">
-  {% else %}
-    <div class="muted">No image</div>
-  {% endif %}
-</div>
+    <div style="margin-bottom: 8px;">
+      <label>Name (required):</label><br>
+      <input type="text" name="customer_name" required
+             value="{{ customer_name|default_if_none:'' }}"
+             style="width: 100%; max-width: 300px;">
+    </div>
 
-        <div class="name">{{ p.name }}</div>
+    <div style="margin-bottom: 8px;">
+      <label>Phone:</label><br>
+      <input type="text" name="customer_phone"
+             value="{{ customer_phone|default_if_none:'' }}"
+             style="width: 100%; max-width: 300px;">
+    </div>
 
-        <div>
-          {% if p.code %}Code: {{ p.code }} <br>{% endif %}
-          {% if p.price %}Price: {{ p.price }} {% if p.unit %}/{{ p.unit }}{% endif %}{% endif %}
-        </div>
+    <div style="margin-bottom: 8px;">
+      <label>Email:</label><br>
+      <input type="email" name="customer_email"
+             value="{{ customer_email|default_if_none:'' }}"
+             style="width: 100%; max-width: 300px;">
+    </div>
 
-        <div style="margin-top: 8px;">
-          <label>Quantity:</label>
-          <input type="number" name="qty_{{ p.id }}" min="0" value="0" style="width: 70px;">
-        </div>
+    <div style="margin-bottom: 8px;">
+      <label>Notes:</label><br>
+      <textarea name="customer_note" rows="3"
+                style="width: 100%; max-width: 400px;">{{ customer_note|default_if_none:'' }}</textarea>
+    </div>
+  </fieldset>
+  {% for category in categories %}
+    <details open style="margin-bottom: 16px;">
+      <summary style="font-weight: 600; cursor: pointer; font-size: 1.1rem;">
+        {{ category.name }}
+      </summary>
+
+      <div class="grid" style="margin-top: 8px;">
+        {% for p in category.products.all %}
+          {% if p.is_active %}
+            <div class="card">
+              <div class="imgbox">
+                {% if p.image %}
+                  <img src="{{ p.image.url }}" alt="{{ p.name }}">
+                {% else %}
+                  <div class="muted">No image</div>
+                {% endif %}
+              </div>
+
+              <div class="name">{{ p.name }}</div>
+              <div class="muted">
+                {% if p.code %}Code: {{ p.code }}<br>{% endif %}
+                {% if p.price %}Price: {{ p.price }}{% if p.unit %} / {{ p.unit }}{% endif %}{% endif %}
+              </div>
+
+              <div style="margin-top: 8px;">
+                <label>Quantity:</label>
+                <input type="number" name="qty_{{ p.id }}" min="0" value="0" style="width: 70px;">
+              </div>
+            </div>
+          {% endif %}
+        {% empty %}
+          <p class="muted">No products in this category yet.</p>
+        {% endfor %}
       </div>
-    {% endfor %}
-  </div>
+    </details>
+  {% endfor %}
 
   <button type="submit" style="margin-top:20px; padding:10px 20px; font-size:16px;">
     Submit Order
   </button>
-
 </form>
-
 {% endblock %}
-
