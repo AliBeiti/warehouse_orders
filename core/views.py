@@ -1,9 +1,41 @@
 from django.shortcuts import render, redirect
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseForbidden
 from .models import Category, Product, Order, OrderItem
+from .telegram_utils import send_order_csv_via_telegram
 
 import csv
 import io
+
+
+def generate_order_csv(order):
+    """Return CSV text for a single order in warehouse pick order."""
+    # Build items list sorted by pick_order
+    items = []
+    for item in order.items.select_related("product").all():
+        items.append({
+            "product": item.product,
+            "quantity": item.quantity,
+        })
+
+    items.sort(key=lambda x: (x["product"].pick_order, x["product"].name))
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=';')
+    writer.writerow(["PickOrder", "ProductName", "ProductCode", "Quantity", "Unit"])
+
+    for item in items:
+        p = item["product"]
+        writer.writerow([
+            p.pick_order,
+            p.name,
+            p.code or "",
+            item["quantity"],
+            p.unit or "",
+        ])
+
+    csv_content = output.getvalue()
+    output.close()
+    return csv_content
 
 # Create your views here.
 def order_form(request):
@@ -105,8 +137,10 @@ def order_success(request):
         "items": items,
     })
 
+def order_confirm(request):
+    if request.method != "POST":
+        return redirect("order_form")
 
-def order_download_csv(request):
     order_id = request.session.get("last_order_id")
     if not order_id:
         return redirect("order_form")
@@ -116,35 +150,36 @@ def order_download_csv(request):
     except Order.DoesNotExist:
         return redirect("order_form")
 
-    # Build items list sorted by warehouse pick_order
-    items = []
-    for item in order.items.all():
-        items.append({
-            "product": item.product,
-            "quantity": item.quantity,
-        })
+    # If already confirmed, just show final page
+    if order.is_confirmed:
+        return render(request, "order_confirmed.html", {"order": order})
 
-    items.sort(key=lambda x: (x["product"].pick_order, x["product"].name))
+    # Generate CSV and send via Telegram
+    csv_content = generate_order_csv(order)
+    send_order_csv_via_telegram(order, csv_content)
 
-    # Create CSV in memory
-    output = io.StringIO()
-    writer = csv.writer(output, delimiter=';')
-    writer.writerow(["PickOrder", "ProductName", "ProductCode", "Quantity", "Unit"])
+    # Mark as confirmed
+    order.is_confirmed = True
+    order.save()
 
-    for item in items:
-        p = item["product"]
-        writer.writerow([
-            p.pick_order,
-            p.name,
-            p.code or "",
-            item["quantity"],
-            p.unit or "",
-        ])
+    # Optionally clear last_order_id from session (or keep it, up to you)
+    # request.session.pop("last_order_id", None)
 
-    csv_content = output.getvalue()
-    output.close()
+    return render(request, "order_confirmed.html", {"order": order})
 
+   
+def order_csv_admin(request, order_id):
+    if not request.user.is_authenticated or not request.user.is_staff:
+        return HttpResponseForbidden("Not allowed")
+
+    try:
+        order = Order.objects.prefetch_related("items__product").get(id=order_id)
+    except Order.DoesNotExist:
+        return HttpResponse("Order not found", status=404)
+
+    csv_content = generate_order_csv(order)
     filename = f"order_{order.id}.csv"
-    response = HttpResponse(csv_content, content_type='text/csv')
+
+    response = HttpResponse(csv_content, content_type="text/csv")
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response

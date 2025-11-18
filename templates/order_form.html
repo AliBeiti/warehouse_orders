@@ -26,14 +26,14 @@
 
     <div style="margin-bottom: 8px;">
       <label>Phone:</label><br>
-      <input type="text" name="customer_phone"
+      <input type="text" name="customer_phone" required
              value="{{ customer_phone|default_if_none:'' }}"
              style="width: 100%; max-width: 300px;">
     </div>
 
     <div style="margin-bottom: 8px;">
       <label>Email:</label><br>
-      <input type="email" name="customer_email"
+      <input type="email" name="customer_email" required
              value="{{ customer_email|default_if_none:'' }}"
              style="width: 100%; max-width: 300px;">
     </div>

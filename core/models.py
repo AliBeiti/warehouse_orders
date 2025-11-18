@@ -35,6 +35,9 @@ class Product(models.Model):
     # Image for the product (optional)
     image = models.ImageField(upload_to='products/', blank=True, null=True)
 
+    class Meta:
+        ordering = ("display_order", "name")
+
     def __str__(self):
         # How the product will be shown in admin / logs
         return f"{self.name} ({self.code})" if self.code else self.name
@@ -46,6 +49,7 @@ class Order(models.Model):
     customer_phone = models.CharField(max_length=50, blank=True)
     customer_email = models.EmailField(blank=True)
     customer_note = models.TextField(blank=True)
+    is_confirmed = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Order #{self.id} - {self.customer_name} ({self.created_at:%Y-%m-%d})"

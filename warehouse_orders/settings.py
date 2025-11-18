@@ -122,3 +122,14 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+import os 
+
+import os
+
+# TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")  # or hard-code for testing
+# TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")      # your chat ID or group ID
+
+TELEGRAM_BOT_TOKEN = "7856806831:AAFgLo09GHNSojk7BFcwWaX-esp_gB74njw"
+TELEGRAM_CHAT_ID = "@masterbestkozmetic"      # your chat ID or group ID
+

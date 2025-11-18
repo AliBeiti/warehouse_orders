@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Order Confirmed{% endblock %}
+
+{% block content %}
+<h2>Thank you!</h2>
+
+<p>Your order has been confirmed and sent to our warehouse.</p>
+
+{% if order %}
+  <p><strong>Order ID:</strong> {{ order.id }}</p>
+  <p><strong>Name:</strong> {{ order.customer_name }}</p>
+{% endif %}
+
+<p>You can now close this page.</p>
+{% endblock %}
