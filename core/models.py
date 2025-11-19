@@ -1,15 +1,42 @@
 from django.db import models
+from decimal import Decimal
 
 
 class Category(models.Model):
+    """
+    Category is now hierarchical:
+    - parent = None  -> main category (for your 5–7 main pages)
+    - parent != None -> sub category (for collapsible sections inside a main page)
+    """
     name = models.CharField(max_length=100, unique=True)
     display_order = models.PositiveIntegerField(default=0)
+
+    # NEW: parent category for subcategories
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        related_name='subcategories',
+        null=True,
+        blank=True,
+        help_text="Leave empty for MAIN categories. Set a parent to make this a SUB category."
+    )
 
     class Meta:
         ordering = ("display_order", "name")
 
     def __str__(self):
+        if self.parent:
+            return f"{self.parent.name} → {self.name}"
         return self.name
+
+    @property
+    def is_main(self):
+        """True if this is a main category (no parent)."""
+        return self.parent is None
+
+    @property
+    def is_sub(self):
+        return self.parent is not None
 
 
 class Product(models.Model):
@@ -26,7 +53,28 @@ class Product(models.Model):
     # Warehouse picking order: 1, 2, 3, ... (used to sort for the warehouse route)
     pick_order = models.PositiveIntegerField()
     display_order = models.PositiveIntegerField(default=0)
-    price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+
+    # Base price (what you had already). We’ll treat this as the price BEFORE discount.
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+    )
+
+    # NEW: percentage discount (offers like -20%, -30%, etc.)
+    discount_percent = models.PositiveIntegerField(
+        default=0,
+        help_text="Percentage discount (0–100). 0 means no discount."
+    )
+
+    discount_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="If set, this final price overrides the percentage discount."
+    )
     unit = models.CharField(max_length=50, blank=True)  # e.g. "piece", "box", "kg"
 
     # Whether the product should appear in the order form
@@ -42,7 +90,32 @@ class Product(models.Model):
         # How the product will be shown in admin / logs
         return f"{self.name} ({self.code})" if self.code else self.name
 
-    
+    @property
+    def final_price(self):
+        """
+        Final selling price logic:
+        1. If discount_price is set -> use that.
+        2. Else if discount_percent > 0 -> price * (100 - discount_percent) / 100.
+        3. Else -> price.
+        """
+        from decimal import Decimal
+
+        if self.price is None:
+            return None
+
+        # 1) Manual override
+        if self.discount_price is not None:
+            return self.discount_price
+
+        # 2) Percentage discount
+        if self.discount_percent:
+            factor = Decimal(100 - self.discount_percent) / Decimal(100)
+            return (self.price * factor).quantize(Decimal("0.01"))
+
+        # 3) No discount
+        return self.price
+
+
 class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     customer_name = models.CharField(max_length=200)
@@ -53,7 +126,7 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order #{self.id} - {self.customer_name} ({self.created_at:%Y-%m-%d})"
-    
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(
@@ -69,4 +142,3 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product.name} x {self.quantity}"
-

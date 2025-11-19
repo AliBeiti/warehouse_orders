@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse, HttpResponseForbidden
 from .models import Category, Product, Order, OrderItem
 from .telegram_utils import send_order_csv_via_telegram
+from decimal import Decimal
 
 import csv
 import io
@@ -39,8 +40,16 @@ def generate_order_csv(order):
 
 # Create your views here.
 def order_form(request):
+    # All active products (used to read quantities from POST)
     products = Product.objects.filter(is_active=True)
-    categories = Category.objects.all().order_by("display_order", "name")
+
+    # Main categories (tabs): parent is NULL
+    main_categories = (
+        Category.objects
+        .filter(parent__isnull=True)
+        .order_by("display_order", "name")
+        .prefetch_related("subcategories__products")
+    )
 
     if request.method == "POST":
         # 1) Read customer info
@@ -62,20 +71,23 @@ def order_form(request):
             qty_raw = request.POST.get(field_name)
 
             try:
-                qty = int(qty_raw)
-            except (TypeError, ValueError):
+                qty = int(qty_raw) if qty_raw is not None else 0
+            except ValueError:
                 qty = 0
 
             if qty > 0:
-                selected_items.append({"product": p, "quantity": qty})
+                selected_items.append({
+                    "product": p,
+                    "quantity": qty,
+                })
 
         if not selected_items:
             errors.append("Please select at least one product.")
 
-        # If any errors, re-render form with messages and previously entered customer info
+        # if there are errors, re-render form with messages + customer info
         if errors:
             return render(request, "order_form.html", {
-                "categories": categories,
+                "main_categories": main_categories,
                 "error_list": errors,
                 "customer_name": customer_name,
                 "customer_phone": customer_phone,
@@ -101,13 +113,16 @@ def order_form(request):
 
         # 5) Store order id in session for success / CSV
         request.session["last_order_id"] = order.id
-        # optional: clear old session cart
-        request.session.pop("order_items", None)
+        # optional: later we can put a session cart here
+        # request.session["order_items"] = ...
 
         return redirect("order_success")
 
     # GET request
-    return render(request, "order_form.html", {"categories": categories})
+    return render(request, "order_form.html", {
+        "main_categories": main_categories,
+    })
+
 
 def order_success(request):
     order_id = request.session.get("last_order_id")
@@ -116,26 +131,44 @@ def order_success(request):
         return redirect("order_form")
 
     try:
-        order = Order.objects.prefetch_related(
-            "items__product"
-        ).get(id=order_id)
+        order = Order.objects.prefetch_related("items__product").get(id=order_id)
     except Order.DoesNotExist:
         return redirect("order_form")
 
-    # Build items list sorted by warehouse order
-    items = []
-    for item in order.items.all():
-        items.append({
-            "product": item.product,
-            "quantity": item.quantity,
+    # Build display lines sorted by warehouse pick order
+    raw_items = list(order.items.select_related("product").all())
+
+    lines = []
+    total = Decimal("0.00")
+
+    for oi in sorted(raw_items, key=lambda i: i.product.pick_order):
+        product = oi.product
+
+        # unit_price = discounted price if available, otherwise base price, otherwise 0
+        if product.final_price is not None:
+            unit_price = product.final_price
+        elif product.price is not None:
+            unit_price = product.price
+        else:
+            unit_price = Decimal("0.00")
+
+        line_total = unit_price * oi.quantity
+        total += line_total
+
+        lines.append({
+            "order_item": oi,
+            "product": product,
+            "quantity": oi.quantity,
+            "unit_price": unit_price,
+            "line_total": line_total,
         })
 
-    items.sort(key=lambda x: (x["product"].pick_order, x["product"].name))
-
-    return render(request, "order_success.html", {
+    context = {
         "order": order,
-        "items": items,
-    })
+        "items": lines,
+        "total": total,
+    }
+    return render(request, "order_success.html", context)
 
 def order_confirm(request):
     if request.method != "POST":
