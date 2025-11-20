@@ -61,7 +61,9 @@ def order_form(request):
         errors = []
 
         if not customer_name:
-            errors.append("Name is required.")
+            errors.append("İsim alanı zorunludur.")
+        if not customer_phone:
+            errors.append("Telefon alanı zorunludur.")
 
         # 2) Read products and quantities
         selected_items = []
@@ -82,7 +84,7 @@ def order_form(request):
                 })
 
         if not selected_items:
-            errors.append("Please select at least one product.")
+            errors.append("Lütfen en az bir ürün seçiniz.")
 
         # if there are errors, re-render form with messages + customer info
         if errors:

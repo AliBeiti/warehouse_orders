@@ -1,7 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Sipariş Formu{% endblock %}
+{% block title %}Order Form{% endblock %}
 
 {% block extra_head %}
+
+
 <style>
   .tabs {
     display: flex;
@@ -28,7 +30,7 @@
   .tab-panel.active {
     display: block;
   }
-
+  
   .discount-badge {
     display: inline-block;
     padding: 2px 6px;
@@ -94,17 +96,17 @@
     background: #e0e0e0;
   }
 
-  /* Sayı alanındaki varsayılan okları gizle */
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
   }
+
+  /* Firefox */
   input[type="number"] {
     -moz-appearance: textfield;
   }
-
-  /* Genel yerleşim */
+    /* Page layout */
   .page-wrapper {
     max-width: 1200px;
     margin: 0 auto;
@@ -155,6 +157,7 @@
   .primary-btn:hover {
     background: #111;
   }
+
 </style>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -171,7 +174,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   if (tabButtons.length > 0) {
-    // Varsayılan: ilk sekmeyi aç
+    // Default: activate first tab
     activateTab(tabButtons[0].dataset.tabTarget);
   }
 
@@ -181,10 +184,10 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  // Adet + / - butonları
+  // Quantity +/- buttons
   document.querySelectorAll(".qty-btn").forEach(function (btn) {
     btn.addEventListener("click", function () {
-      const direction = this.dataset.qtyBtn; // "plus" veya "minus"
+      const direction = this.dataset.qtyBtn; // "plus" or "minus"
       const wrapper = this.closest(".qty-control");
       if (!wrapper) return;
 
@@ -202,8 +205,7 @@ document.addEventListener("DOMContentLoaded", function () {
       input.value = value;
     });
   });
-
-  // Odaklandığında değeri seç (0'ı kolayca değiştirmek için)
+  // Auto-select quantity text when focusing the input
   document.querySelectorAll(".qty-input").forEach(function (input) {
     input.addEventListener("focus", function () {
       this.select();
@@ -213,6 +215,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 });
+
 </script>
 {% endblock %}
 
@@ -232,51 +235,51 @@ document.addEventListener("DOMContentLoaded", function () {
   <form method="POST">
     {% csrf_token %}
 
-    {# Müşteri bilgileri kartı #}
+    {# ---- Customer info card ---- #}
     <section class="section-card">
       <div class="section-header">
-        <h2 class="section-title">Müşteri bilgileri</h2>
-        <p class="section-subtitle">Lütfen iletişim bilgilerinizi doldurunuz.</p>
+        <h2 class="section-title">Customer information</h2>
+        <p class="section-subtitle">Please fill in your contact details.</p>
       </div>
 
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
         <div>
-          <label>İsim (zorunlu):</label><br>
+          <label>Name (required):</label><br>
           <input type="text" name="customer_name" required
                  value="{{ customer_name|default_if_none:'' }}"
                  style="width: 100%; max-width: 300px;">
         </div>
 
         <div>
-          <label>Telefon (zorunlu):</label><br>
+          <label>Phone:</label><br>
           <input type="text" name="customer_phone" required
                  value="{{ customer_phone|default_if_none:'' }}"
                  style="width: 100%; max-width: 300px;">
         </div>
 
         <div>
-          <label>E-posta:</label><br>
-          <input type="email" name="customer_email" 
+          <label>Email:</label><br>
+          <input type="email" name="customer_email" required
                  value="{{ customer_email|default_if_none:'' }}"
                  style="width: 100%; max-width: 300px;">
         </div>
       </div>
 
       <div style="margin-top: 12px;">
-        <label>Notlar:</label><br>
+        <label>Notes:</label><br>
         <textarea name="customer_note" rows="3"
                   style="width: 100%; max-width: 600px;">{{ customer_note|default_if_none:'' }}</textarea>
       </div>
     </section>
 
-    {# Ürünler kartı #}
+    {# ---- Products card ---- #}
     <section class="section-card">
       <div class="section-header">
-        <h2 class="section-title">Ürünler</h2>
-        <p class="section-subtitle">Sipariş etmek istediğiniz ürünleri seçiniz.</p>
+        <h2 class="section-title">Products</h2>
+        <p class="section-subtitle">Choose the items you want to order.</p>
       </div>
 
-      {# Ana kategoriler için sekmeler #}
+      {# Tabs for main categories #}
       {% if main_categories %}
         <div class="tabs">
           {% for main in main_categories %}
@@ -288,7 +291,7 @@ document.addEventListener("DOMContentLoaded", function () {
           {% endfor %}
         </div>
 
-        {# Her ana kategori için panel #}
+        {# Panels for each main category #}
         {% for main in main_categories %}
           <section class="tab-panel" data-tab-panel="cat-{{ main.id }}">
             {% if main.subcategories.all %}
@@ -306,13 +309,13 @@ document.addEventListener("DOMContentLoaded", function () {
                             {% if p.image %}
                               <img src="{{ p.image.url }}" alt="{{ p.name }}">
                             {% else %}
-                              <div class="muted">Görsel yok</div>
+                              <div class="muted">No image</div>
                             {% endif %}
                           </div>
 
                           <div class="name">{{ p.name }}</div>
                           <div class="muted">
-                            {% if p.code %}Kod: {{ p.code }}<br>{% endif %}
+                            {% if p.code %}Code: {{ p.code }}<br>{% endif %}
                             {% if p.price %}
                               {% if p.discount_price or p.discount_percent %}
                                 <div class="discount-badge">
@@ -335,7 +338,7 @@ document.addEventListener("DOMContentLoaded", function () {
                           </div>
 
                           <div style="margin-top: 8px;">
-                            <label>Adet:</label>
+                            <label>Quantity:</label>
                             <div class="qty-control" data-product-id="{{ p.id }}">
                               <button type="button" class="qty-btn" data-qty-btn="minus">−</button>
                               <input type="number"
@@ -349,13 +352,13 @@ document.addEventListener("DOMContentLoaded", function () {
                         </div>
                       {% endif %}
                     {% empty %}
-                      <p class="muted">Bu alt kategoride henüz ürün yok.</p>
+                      <p class="muted">No products in this category yet.</p>
                     {% endfor %}
                   </div>
                 </details>
               {% endfor %}
             {% else %}
-              <p class="muted">Bu ana kategoriye ait alt kategori tanımlanmamış.</p>
+              <p class="muted">No subcategories defined for this category yet.</p>
               <div class="grid" style="margin-top: 8px;">
                 {% for p in main.products.all %}
                   {% if p.is_active %}
@@ -364,13 +367,13 @@ document.addEventListener("DOMContentLoaded", function () {
                         {% if p.image %}
                           <img src="{{ p.image.url }}" alt="{{ p.name }}">
                         {% else %}
-                          <div class="muted">Görsel yok</div>
+                          <div class="muted">No image</div>
                         {% endif %}
                       </div>
 
                       <div class="name">{{ p.name }}</div>
                       <div class="muted">
-                        {% if p.code %}Kod: {{ p.code }}<br>{% endif %}
+                        {% if p.code %}Code: {{ p.code }}<br>{% endif %}
                         {% if p.price %}
                           {% if p.discount_price or p.discount_percent %}
                             <div class="discount-badge">
@@ -393,7 +396,7 @@ document.addEventListener("DOMContentLoaded", function () {
                       </div>
 
                       <div style="margin-top: 8px;">
-                        <label>Adet:</label>
+                        <label>Quantity:</label>
                         <div class="qty-control" data-product-id="{{ p.id }}">
                           <button type="button" class="qty-btn" data-qty-btn="minus">−</button>
                           <input type="number"
@@ -407,22 +410,20 @@ document.addEventListener("DOMContentLoaded", function () {
                     </div>
                   {% endif %}
                 {% empty %}
-                  <p class="muted">Bu kategoride henüz ürün yok.</p>
+                  <p class="muted">No products in this category yet.</p>
                 {% endfor %}
               </div>
             {% endif %}
           </section>
         {% endfor %}
       {% else %}
-        <p class="muted">
-          Henüz kategori bulunmamaktadır. Lütfen yönetim panelinden kategori ve ürün ekleyiniz.
-        </p>
+        <p class="muted">No categories available. Please create categories and products in admin.</p>
       {% endif %}
     </section>
 
     <div class="form-actions">
       <button type="submit" class="primary-btn">
-        Siparişi Gönder
+        Submit Order
       </button>
     </div>
   </form>
