@@ -26,7 +26,12 @@ SECRET_KEY = 'django-insecure-j2kqu+=$0sowh@kact3!zdk%g)5d*#uo8poeb0vg0379g)hj)w
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    ".ngrok-free.app",
+    ".ngrok-free.dev",
+]
 
 
 # Application definition
@@ -116,7 +121,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [ BASE_DIR / "static" ]
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -132,4 +139,9 @@ import os
 
 TELEGRAM_BOT_TOKEN = "7856806831:AAFgLo09GHNSojk7BFcwWaX-esp_gB74njw"
 TELEGRAM_CHAT_ID = "@masterbestkozmetic"      # your chat ID or group ID
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.ngrok-free.app",
+    "https://*.ngrok-free.dev",
+]
 
