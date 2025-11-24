@@ -28,6 +28,52 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  // ----- LocalStorage helpers for cart -----
+  const STORAGE_KEY = "order_cart_v1";
+
+  function loadCart() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (e) {
+      console.warn("Could not parse cart from localStorage:", e);
+      return {};
+    }
+  }
+
+  function saveCart() {
+    const cart = {};
+    document.querySelectorAll(".qty-control").forEach(function (wrapper) {
+      const pid = wrapper.dataset.productId;
+      const input = wrapper.querySelector(".qty-input");
+      if (!pid || !input) return;
+
+      const val = parseInt(input.value || "0", 10);
+      if (!Number.isNaN(val) && val > 0) {
+        cart[pid] = val;
+      }
+    });
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+    } catch (e) {
+      console.warn("Could not save cart to localStorage:", e);
+    }
+  }
+
+  // Apply saved cart on page load
+  const savedCart = loadCart();
+  document.querySelectorAll(".qty-control").forEach(function (wrapper) {
+    const pid = wrapper.dataset.productId;
+    const input = wrapper.querySelector(".qty-input");
+    if (!pid || !input) return;
+
+    if (savedCart[pid] != null) {
+      input.value = savedCart[pid];
+    }
+  });
+
   // ----- Quantity +/- with press-and-hold (using pointer events) -----
   function changeQty(input, delta) {
     const min = parseInt(input.getAttribute("min") || "0", 10);
@@ -37,6 +83,7 @@ document.addEventListener("DOMContentLoaded", function () {
     value += delta;
     if (value < min) value = min;
     input.value = value;
+    saveCart();
   }
 
   document.querySelectorAll(".qty-btn").forEach(function (btn) {
@@ -85,7 +132,7 @@ document.addEventListener("DOMContentLoaded", function () {
     btn.addEventListener("pointercancel", stop);
   });
 
-  // ----- Auto-select input value on focus (easier to replace 0) -----
+  // ----- Auto-select input value on focus + save cart on change -----
   document.querySelectorAll(".qty-input").forEach(function (input) {
     input.addEventListener("focus", function () {
       this.select();
@@ -93,7 +140,113 @@ document.addEventListener("DOMContentLoaded", function () {
     input.addEventListener("click", function () {
       this.select();
     });
+    input.addEventListener("change", saveCart);
+    input.addEventListener("blur", saveCart);
   });
+
+  // ----- Accordion behavior for subcategory <details> -----
+    // ----- Accordion behavior for subcategory <details> + scroll to top -----
+  const allDetails = document.querySelectorAll(".subcategory-details");
+
+  function scrollDetailsToTop(el) {
+    // Scroll so that the <details> starts just below the header
+    const headerOffset = 80; // adjust if your header is taller/shorter
+    const rect = el.getBoundingClientRect();
+    const offsetTop = rect.top + window.pageYOffset - headerOffset;
+
+    window.scrollTo({
+      top: offsetTop,
+      behavior: "smooth",
+    });
+  }
+
+  allDetails.forEach(function (det) {
+    det.addEventListener("toggle", function () {
+      if (this.open) {
+        // Close all others
+        allDetails.forEach(function (other) {
+          if (other !== det) {
+            other.open = false;
+          }
+        });
+
+        // Scroll this one to the top (slight delay so layout can settle)
+        setTimeout(function () {
+          scrollDetailsToTop(det);
+        }, 50);
+      }
+    });
+  });
+
+
+  // ----- Product search (scroll to matching product) -----
+  const searchInput = document.getElementById("product-search-input");
+  const searchBtn = document.getElementById("product-search-btn");
+
+  function normalize(str) {
+    return str ? str.toString().toLowerCase().trim() : "";
+  }
+
+  function clearHighlights() {
+    document.querySelectorAll(".product-highlight").forEach(function (el) {
+      el.classList.remove("product-highlight");
+    });
+  }
+
+  function openParentSections(card) {
+    // Open the correct tab
+    const tabPanel = card.closest("[data-tab-panel]");
+    if (tabPanel) {
+      const targetId = tabPanel.dataset.tabPanel;
+      activateTab(targetId);
+    }
+    // Open the correct subcategory <details>
+    const details = card.closest("details");
+    if (details && !details.open) {
+      details.open = true;
+    }
+  }
+
+  function searchAndScroll() {
+    const q = normalize(searchInput.value);
+    if (!q) return;
+
+    clearHighlights();
+
+    const cards = document.querySelectorAll(".card[data-product-name]");
+    let match = null;
+
+    cards.forEach(function (card) {
+      if (match) return;
+      const name = normalize(card.dataset.productName);
+      const code = normalize(card.dataset.productCode);
+      if ((name && name.includes(q)) || (code && code.includes(q))) {
+        match = card;
+      }
+    });
+
+    if (match) {
+      openParentSections(match);
+      match.classList.add("product-highlight");
+      match.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else {
+      // Optional: small visual feedback; for now we do nothing
+      // alert("Ürün bulunamadı");
+    }
+  }
+
+  if (searchInput && searchBtn) {
+    searchBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      searchAndScroll();
+    });
+    searchInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        searchAndScroll();
+      }
+    });
+  }
 
   // ----- Sticky submit button triggers form submit -----
   const stickyBtn = document.getElementById("sticky-submit-btn");
@@ -106,8 +259,6 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 {% endblock %}
-
-
 
 {% block content %}
 <div class="page-wrapper">
@@ -127,7 +278,7 @@ document.addEventListener("DOMContentLoaded", function () {
     {% csrf_token %}
 
     {# ----- Customer information ----- #}
-    <section class="section-card">
+    <section class="section-card section-customer">
       <div class="section-header">
         <h2 class="section-title">Müşteri bilgileri</h2>
         <p class="section-subtitle">Lütfen iletişim bilgilerinizi doldurunuz.</p>
@@ -135,21 +286,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
       <div class="form-grid">
         <div>
-          <label>İsim (zorunlu):</label><br>
+          <label>İsim<span class="required-star">*</span>:</label><br>
           <input type="text" name="customer_name" required
                  value="{{ customer_name|default_if_none:'' }}"
                  style="width: 100%; max-width: 300px;">
         </div>
 
         <div>
-          <label>Telefon:</label><br>
+          <label>Telefon<span class="required-star">*</span>:</label><br>
           <input type="text" name="customer_phone" required
                  value="{{ customer_phone|default_if_none:'' }}"
                  style="width: 100%; max-width: 300px;">
         </div>
 
         <div>
-          <label>E-posta:</label><br>
+          <label>E-posta<span class="required-star">*</span>:</label><br>
           <input type="email" name="customer_email" required
                  value="{{ customer_email|default_if_none:'' }}"
                  style="width: 100%; max-width: 300px;">
@@ -168,6 +319,19 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="section-header">
         <h2 class="section-title">Ürünler</h2>
         <p class="section-subtitle">Sipariş etmek istediğiniz ürünleri seçiniz.</p>
+      </div>
+
+      {# Product search bar #}
+      <div class="product-search-bar">
+        <input type="text"
+               id="product-search-input"
+               class="product-search-input"
+               placeholder="Ürün adı veya kodu ile ara...">
+        <button type="button"
+                class="primary-btn secondary-btn"
+                id="product-search-btn">
+          Ara
+        </button>
       </div>
 
       {% if main_categories %}
@@ -189,18 +353,21 @@ document.addEventListener("DOMContentLoaded", function () {
             {% if main.subcategories.all %}
               {% for sub in main.subcategories.all %}
                 {# details: now CLOSED by default (no "open" attribute) #}
-                <details style="margin-bottom: 16px;">
-                  <summary style="font-weight: 600; cursor: pointer; font-size: 1.05rem;">
+                <details class="subcategory-details" style="margin-bottom: 16px;">
+                  <summary>
                     {{ sub.name }}
                   </summary>
 
                   <div class="grid" style="margin-top: 8px;">
                     {% for p in sub.products.all %}
                       {% if p.is_active %}
-                        <div class="card">
+                        <div class="card"
+                             data-product-id="{{ p.id }}"
+                             data-product-name="{{ p.name }}"
+                             data-product-code="{{ p.code }}">
                           <div class="imgbox">
                             {% if p.image %}
-                              <img src="{{ p.image.url }}" alt="{{ p.name }}">
+                              <img src="{{ p.image.url }}" alt="{{ p.name }}" loading="lazy">
                             {% else %}
                               <div class="muted">Görsel yok</div>
                             {% endif %}
@@ -257,10 +424,13 @@ document.addEventListener("DOMContentLoaded", function () {
               <div class="grid" style="margin-top: 8px;">
                 {% for p in main.products.all %}
                   {% if p.is_active %}
-                    <div class="card">
+                    <div class="card"
+                         data-product-id="{{ p.id }}"
+                         data-product-name="{{ p.name }}"
+                         data-product-code="{{ p.code }}">
                       <div class="imgbox">
                         {% if p.image %}
-                          <img src="{{ p.image.url }}" alt="{{ p.name }}">
+                          <img src="{{ p.image.url }}" alt="{{ p.name }}" loading="lazy">
                         {% else %}
                           <div class="muted">Görsel yok</div>
                         {% endif %}
