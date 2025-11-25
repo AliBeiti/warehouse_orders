@@ -362,55 +362,60 @@ document.addEventListener("DOMContentLoaded", function () {
                     {% for p in sub.products.all %}
                       {% if p.is_active %}
                         <div class="card"
-                             data-product-id="{{ p.id }}"
-                             data-product-name="{{ p.name }}"
-                             data-product-code="{{ p.code }}">
-                          <div class="imgbox">
-                            {% if p.image %}
-                              <img src="{{ p.image.url }}" alt="{{ p.name }}" loading="lazy">
-                            {% else %}
-                              <div class="muted">Görsel yok</div>
-                            {% endif %}
-                          </div>
+     data-product-id="{{ p.id }}"
+     data-product-name="{{ p.name }}"
+     data-product-code="{{ p.code }}">
+  <div class="imgbox">
+    {% if p.image %}
+      <img src="{{ p.image.url }}" alt="{{ p.name }}" loading="lazy">
+    {% else %}
+      <div class="muted">Görsel yok</div>
+    {% endif %}
+  </div>
 
-                          <div class="name">{{ p.name }}</div>
+  <div class="name">{{ p.name }}</div>
 
-                          <div class="muted">
-                            {% if p.code %}Kod: {{ p.code }}<br>{% endif %}
-                            {% if p.price %}
-                              {% if p.discount_price or p.discount_percent %}
-                                <div class="discount-badge">
-                                  İndirim -{% if p.discount_percent %}{{ p.discount_percent }}%{% else %}özel fiyat{% endif %}
-                                </div>
-                                <div class="price-row">
-                                  <span class="price-new">
-                                    {{ p.final_price }} ₺{% if p.unit %} / {{ p.unit }}{% endif %}
-                                  </span>
-                                  <span class="price-old">{{ p.price }} ₺</span>
-                                </div>
-                              {% else %}
-                                <div class="price-row">
-                                  <span class="price-normal">
-                                    {{ p.price }} ₺{% if p.unit %} / {{ p.unit }}{% endif %}
-                                  </span>
-                                </div>
-                              {% endif %}
-                            {% endif %}
-                          </div>
+  <div class="muted">
+    {% if p.code %}Kod: {{ p.code }}<br>{% endif %}
+  </div>
 
-                          <div style="margin-top: 8px;">
-                            <label>Adet:</label>
-                            <div class="qty-control" data-product-id="{{ p.id }}">
-                              <button type="button" class="qty-btn" data-qty-btn="minus">−</button>
-                              <input type="number"
-                                     class="qty-input"
-                                     name="qty_{{ p.id }}"
-                                     min="0"
-                                     value="0">
-                              <button type="button" class="qty-btn" data-qty-btn="plus">+</button>
-                            </div>
-                          </div>
-                        </div>
+  <div class="card-footer-line">
+    <div class="card-price">
+      {% if p.price %}
+        {% if p.discount_price or p.discount_percent %}
+          <div class="discount-badge">
+            İndirim -{% if p.discount_percent %}{{ p.discount_percent }}%{% else %}özel fiyat{% endif %}
+          </div>
+          <div class="price-row">
+            <span class="price-new">
+              {{ p.final_price }} ₺{% if p.unit %} / {{ p.unit }}{% endif %}
+            </span>
+            <span class="price-old">{{ p.price }} ₺</span>
+          </div>
+        {% else %}
+          <div class="price-row">
+            <span class="price-normal">
+              {{ p.price }} ₺{% if p.unit %} / {{ p.unit }}{% endif %}
+            </span>
+          </div>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <div class="card-qty">
+      <div class="qty-control" data-product-id="{{ p.id }}">
+        <button type="button" class="qty-btn" data-qty-btn="minus">−</button>
+        <input type="number"
+               class="qty-input"
+               name="qty_{{ p.id }}"
+               min="0"
+               value="0">
+        <button type="button" class="qty-btn" data-qty-btn="plus">+</button>
+      </div>
+    </div>
+  </div>
+</div>
+
                       {% endif %}
                     {% empty %}
                       <p class="muted">Bu alt kategoride henüz ürün yok.</p>
@@ -425,55 +430,60 @@ document.addEventListener("DOMContentLoaded", function () {
                 {% for p in main.products.all %}
                   {% if p.is_active %}
                     <div class="card"
-                         data-product-id="{{ p.id }}"
-                         data-product-name="{{ p.name }}"
-                         data-product-code="{{ p.code }}">
-                      <div class="imgbox">
-                        {% if p.image %}
-                          <img src="{{ p.image.url }}" alt="{{ p.name }}" loading="lazy">
-                        {% else %}
-                          <div class="muted">Görsel yok</div>
-                        {% endif %}
-                      </div>
+     data-product-id="{{ p.id }}"
+     data-product-name="{{ p.name }}"
+     data-product-code="{{ p.code }}">
+  <div class="imgbox">
+    {% if p.image %}
+      <img src="{{ p.image.url }}" alt="{{ p.name }}" loading="lazy">
+    {% else %}
+      <div class="muted">Görsel yok</div>
+    {% endif %}
+  </div>
 
-                      <div class="name">{{ p.name }}</div>
+  <div class="name">{{ p.name }}</div>
 
-                      <div class="muted">
-                        {% if p.code %}Kod: {{ p.code }}<br>{% endif %}
-                        {% if p.price %}
-                          {% if p.discount_price or p.discount_percent %}
-                            <div class="discount-badge">
-                              İndirim -{% if p.discount_percent %}{{ p.discount_percent }}%{% else %}özel fiyat{% endif %}
-                            </div>
-                            <div class="price-row">
-                              <span class="price-new">
-                                {{ p.final_price }} ₺{% if p.unit %} / {{ p.unit }}{% endif %}
-                              </span>
-                              <span class="price-old">{{ p.price }} ₺</span>
-                            </div>
-                          {% else %}
-                            <div class="price-row">
-                              <span class="price-normal">
-                                {{ p.price }} ₺{% if p.unit %} / {{ p.unit }}{% endif %}
-                              </span>
-                            </div>
-                          {% endif %}
-                        {% endif %}
-                      </div>
+  <div class="muted">
+    {% if p.code %}Kod: {{ p.code }}<br>{% endif %}
+  </div>
 
-                      <div style="margin-top: 8px;">
-                        <label>Adet:</label>
-                        <div class="qty-control" data-product-id="{{ p.id }}">
-                          <button type="button" class="qty-btn" data-qty-btn="minus">−</button>
-                          <input type="number"
-                                 class="qty-input"
-                                 name="qty_{{ p.id }}"
-                                 min="0"
-                                 value="0">
-                          <button type="button" class="qty-btn" data-qty-btn="plus">+</button>
-                        </div>
-                      </div>
-                    </div>
+  <div class="card-footer-line">
+    <div class="card-price">
+      {% if p.price %}
+        {% if p.discount_price or p.discount_percent %}
+          <div class="discount-badge">
+            İndirim -{% if p.discount_percent %}{{ p.discount_percent }}%{% else %}özel fiyat{% endif %}
+          </div>
+          <div class="price-row">
+            <span class="price-new">
+              {{ p.final_price }} ₺{% if p.unit %} / {{ p.unit }}{% endif %}
+            </span>
+            <span class="price-old">{{ p.price }} ₺</span>
+          </div>
+        {% else %}
+          <div class="price-row">
+            <span class="price-normal">
+              {{ p.price }} ₺{% if p.unit %} / {{ p.unit }}{% endif %}
+            </span>
+          </div>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <div class="card-qty">
+      <div class="qty-control" data-product-id="{{ p.id }}">
+        <button type="button" class="qty-btn" data-qty-btn="minus">−</button>
+        <input type="number"
+               class="qty-input"
+               name="qty_{{ p.id }}"
+               min="0"
+               value="0">
+        <button type="button" class="qty-btn" data-qty-btn="plus">+</button>
+      </div>
+    </div>
+  </div>
+</div>
+
                   {% endif %}
                 {% empty %}
                   <p class="muted">Bu kategoride henüz ürün yok.</p>

@@ -1,0 +1,132 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Receipt - Order #{{ order.id }}</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            font-size: 12px;
+            margin: 20px;
+        }
+
+        h1, h2, h3 {
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            border-bottom: 1px solid #444;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+        }
+
+        .store-name {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .order-meta {
+            margin-top: 5px;
+            font-size: 11px;
+        }
+
+        .customer-info {
+            margin-top: 15px;
+            font-size: 12px;
+        }
+
+        .customer-info p {
+            margin: 2px 0;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 12px;
+        }
+
+        .items-table th, .items-table td {
+            border: 1px solid #444;
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        .items-table th {
+            background: #f0f0f0;
+        }
+
+        .items-table tfoot td {
+            font-weight: bold;
+        }
+
+        .note {
+            margin-top: 15px;
+            font-size: 11px;
+            color: #555;
+        }
+
+        .footer {
+            margin-top: 25px;
+            font-size: 10px;
+            color: #777;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="store-name">Your Brand Name</div>
+    <div class="order-meta">
+        Order #{{ order.id }}<br>
+        Date: {{ order.created_at|date:"Y-m-d H:i" }}
+    </div>
+</div>
+
+<div class="customer-info">
+    <h3>Customer</h3>
+    <p><strong>Name:</strong> {{ order.customer_name }}</p>
+    {% if order.customer_phone %}
+        <p><strong>Phone:</strong> {{ order.customer_phone }}</p>
+    {% endif %}
+    {% if order.customer_email %}
+        <p><strong>Email:</strong> {{ order.customer_email }}</p>
+    {% endif %}
+    {% if order.customer_note %}
+        <p><strong>Note:</strong> {{ order.customer_note }}</p>
+    {% endif %}
+</div>
+
+<table class="items-table">
+    <thead>
+    <tr>
+        <th>#</th>
+        <th>Product</th>
+        <th>Quantity</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for item in order.items.all %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ item.product.name }}</td>
+            <td>{{ item.quantity }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<p class="note">
+    Thank you for your purchase.
+</p>
+
+<div class="footer">
+    This receipt was generated automatically and is valid without signature.
+</div>
+
+</body>
+</html>

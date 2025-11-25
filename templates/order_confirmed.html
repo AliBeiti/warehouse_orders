@@ -10,6 +10,8 @@
   <p><strong>Order ID:</strong> {{ order.id }}</p>
   <p><strong>Name:</strong> {{ order.customer_name }}</p>
 {% endif %}
-
+<a href="{% url 'order_receipt_pdf' order.id %}" target="_blank">
+    Download Receipt (PDF)
+</a>
 <p>You can now close this page.</p>
 {% endblock %}

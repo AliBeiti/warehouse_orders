@@ -1,8 +1,22 @@
-from django.shortcuts import render, redirect
-from django.http import HttpResponse, HttpResponseForbidden
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponse, HttpResponseForbidden, Http404
 from .models import Category, Product, Order, OrderItem
 from .telegram_utils import send_order_csv_via_telegram
 from decimal import Decimal
+from django.template.loader import render_to_string
+from django.contrib.auth.decorators import login_required
+
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 import csv
 import io
@@ -217,4 +231,99 @@ def order_csv_admin(request, order_id):
 
     response = HttpResponse(csv_content, content_type="text/csv")
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+#@login_required  # optional – remove if customers should access it without login
+def order_receipt_pdf(request, order_id):
+    """
+    Generate a PDF receipt for the given order using ReportLab.
+    """
+    order = get_object_or_404(Order, pk=order_id)
+
+    if not order.is_confirmed:
+        raise Http404("Receipt not available for unconfirmed orders.")
+
+    # Create a BytesIO buffer
+    buffer = BytesIO()
+
+    # Set up the PDF document
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=40,
+        rightMargin=40,
+        topMargin=40,
+        bottomMargin=40,
+    )
+
+    styles = getSampleStyleSheet()
+    elements = []
+
+    # --- Header / Title ---
+    title = f"Order Receipt #{order.id}"
+    elements.append(Paragraph(title, styles["Title"]))
+    elements.append(Spacer(1, 12))
+
+    # --- Order meta info ---
+    meta_text = (
+        f"Date: {order.created_at.strftime('%Y-%m-%d %H:%M')}<br/>"
+        f"Customer: {order.customer_name}"
+    )
+    if order.customer_phone:
+        meta_text += f"<br/>Phone: {order.customer_phone}"
+    if order.customer_email:
+        meta_text += f"<br/>Email: {order.customer_email}"
+
+    elements.append(Paragraph(meta_text, styles["Normal"]))
+    elements.append(Spacer(1, 12))
+
+    if order.customer_note:
+        note_text = f"<b>Customer Note:</b> {order.customer_note}"
+        elements.append(Paragraph(note_text, styles["Normal"]))
+        elements.append(Spacer(1, 12))
+
+    # --- Items table ---
+    data = [["#", "Product", "Quantity"]]
+
+    for i, item in enumerate(order.items.all(), start=1):
+        data.append([
+            str(i),
+            item.product.name,
+            str(item.quantity),
+        ])
+
+    table = Table(data, colWidths=[30, 300, 80])
+
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
+    ]))
+
+    elements.append(table)
+    elements.append(Spacer(1, 18))
+
+    # --- Footer text ---
+    footer_text = (
+        "Thank you for your purchase.<br/>"
+        "This receipt was generated automatically and is valid without signature."
+    )
+    elements.append(Paragraph(footer_text, styles["Normal"]))
+
+    # Build the PDF
+    doc.build(elements)
+
+    # Get the PDF value
+    pdf_value = buffer.getvalue()
+    buffer.close()
+
+    # Return as response
+    filename = f"order_{order.id}_receipt.pdf"
+    response = HttpResponse(pdf_value, content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
     return response
