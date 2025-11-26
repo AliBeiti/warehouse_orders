@@ -17,6 +17,7 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+from .pdf_utils import build_full_picking_pdf, send_order_picking_pdf_to_telegram
 
 import csv
 import io
@@ -210,6 +211,8 @@ def order_confirm(request):
     # Mark as confirmed
     order.is_confirmed = True
     order.save()
+    send_order_picking_pdf_to_telegram(order)
+
 
     # Optionally clear last_order_id from session (or keep it, up to you)
     # request.session.pop("last_order_id", None)
@@ -326,4 +329,23 @@ def order_receipt_pdf(request, order_id):
     filename = f"order_{order.id}_receipt.pdf"
     response = HttpResponse(pdf_value, content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="{filename}"'
+    return response
+
+
+def order_picking_pdf(request, order_id):
+    """
+    Return the picking PDF for a given order as an HTTP response,
+    so you can open it in the browser for testing or download it.
+    """
+    order = get_object_or_404(Order, pk=order_id)
+
+    if not order.is_confirmed:
+        raise Http404("Picking PDF is only available for confirmed orders.")
+
+    pdf_bytes = build_full_picking_pdf(order)
+
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'inline; filename="order_{order.id}_picking.pdf"'
+    )
     return response

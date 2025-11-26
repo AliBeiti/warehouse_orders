@@ -13,5 +13,9 @@
 <a href="{% url 'order_receipt_pdf' order.id %}" target="_blank">
     Download Receipt (PDF)
 </a>
+<a href="{% url 'order_picking_pdf' order.id %}" class="btn btn-secondary" target="_blank">
+  Picking PDF
+</a>
+
 <p>You can now close this page.</p>
 {% endblock %}

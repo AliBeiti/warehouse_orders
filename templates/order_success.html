@@ -1,77 +1,160 @@
 {% extends "base.html" %}
 {% block title %}Siparişi Kontrol Et{% endblock %}
 
+{% block extra_head %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  // Quantity +/- on summary page
+  function changeQty(input, delta) {
+    const min = parseInt(input.getAttribute("min") || "1", 10);
+    let value = parseInt(input.value || "0", 10);
+    if (Number.isNaN(value)) value = min;
+
+    value += delta;
+    if (value < min) value = min;
+    input.value = value;
+  }
+
+  document.querySelectorAll(".qty-btn").forEach(function (btn) {
+    const delta = btn.dataset.qtyBtn === "plus" ? 1 : -1;
+
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      const wrapper = btn.closest(".qty-control");
+      if (!wrapper) return;
+      const input = wrapper.querySelector(".qty-input");
+      if (!input) return;
+      changeQty(input, delta);
+    });
+  });
+
+  // Select whole value on focus/click for easy editing
+  document.querySelectorAll(".qty-input").forEach(function (input) {
+    input.addEventListener("focus", function () {
+      this.select();
+    });
+    input.addEventListener("click", function () {
+      this.select();
+    });
+  });
+});
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="page-wrapper">
   <section class="section-card">
-    <h2 class="section-title">Sipariş Özeti</h2>
+    <div class="section-header summary-header">
+      <h2 class="section-title">Sipariş Özeti</h2>
+      <p class="section-subtitle">Lütfen bilgileri ve ürün adetlerini kontrol ediniz.</p>
+    </div>
 
     {% if order %}
-      <p><strong>İsim:</strong> {{ order.customer_name }}</p>
-      {% if order.customer_phone %}<p><strong>Telefon:</strong> {{ order.customer_phone }}</p>{% endif %}
-      {% if order.customer_email %}<p><strong>E-posta:</strong> {{ order.customer_email }}</p>{% endif %}
-      {% if order.customer_note %}<p><strong>Notlar:</strong> {{ order.customer_note }}</p>{% endif %}
+      <div class="summary-info-box">
+        <h3 class="section-title" style="margin-bottom: 10px;">Müşteri Bilgileri</h3>
+
+        <div class="summary-info-grid">
+          <div class="summary-info-item">
+            <div class="summary-item-label">İsim</div>
+            <div class="summary-item-value">{{ order.customer_name }}</div>
+          </div>
+
+          {% if order.customer_phone %}
+          <div class="summary-info-item">
+            <div class="summary-item-label">Telefon</div>
+            <div class="summary-item-value">{{ order.customer_phone }}</div>
+          </div>
+          {% endif %}
+
+          {% if order.customer_email %}
+          <div class="summary-info-item">
+            <div class="summary-item-label">E-posta</div>
+            <div class="summary-item-value">{{ order.customer_email }}</div>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if order.customer_note %}
+          <div class="summary-notes-box">
+            <div class="summary-item-label">Notlar</div>
+            <div class="summary-item-value">{{ order.customer_note }}</div>
+          </div>
+        {% endif %}
+      </div>
     {% endif %}
 
     {% if items %}
-      <h3>Ürünler</h3>
-
-      <table style="width:100%; border-collapse: collapse; margin-bottom: 16px;">
-        <thead>
-          <tr>
-            <th style="border-bottom:1px solid #ccc; text-align:left; padding:6px;">Ürün</th>
-            <th style="border-bottom:1px solid #ccc; text-align:right; padding:6px;">Adet</th>
-            <th style="border-bottom:1px solid #ccc; text-align:right; padding:6px;">Birim fiyat</th>
-            <th style="border-bottom:1px solid #ccc; text-align:right; padding:6px;">Ara toplam</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for line in items %}
-            <tr>
-              <td style="border-bottom:1px solid #eee; padding:6px;">
-                {{ line.product.name }}
-                {% if line.product.code %}
-                  <br><span class="muted">Kod: {{ line.product.code }}</span>
-                {% endif %}
-                {% if line.product.unit %}
-                  <br><span class="muted">Birim: {{ line.product.unit }}</span>
-                {% endif %}
-                {% if line.product.discount_percent or line.product.discount_price %}
-                  <br><span style="font-size:0.8rem; color:#e67e22;">
-                    İndirimli ürün
-                  </span>
-                {% endif %}
-              </td>
-              <td style="border-bottom:1px solid #eee; padding:6px; text-align:right;">
-                {{ line.quantity }}
-              </td>
-              <td style="border-bottom:1px solid #eee; padding:6px; text-align:right;">
-                {{ line.unit_price }} ₺
-              </td>
-              <td style="border-bottom:1px solid #eee; padding:6px; text-align:right;">
-                {{ line.line_total }} ₺
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="3" style="padding:6px; text-align:right; font-weight:bold;">
-              Toplam:
-            </td>
-            <td style="padding:6px; text-align:right; font-weight:bold;">
-              {{ total }} ₺
-            </td>
-          </tr>
-        </tfoot>
-      </table>
-
       <form method="post" action="{% url 'order_confirm' %}">
         {% csrf_token %}
-        <button type="submit"
-                style="margin-top:10px; padding:8px 16px; font-size:16px;">
-          Siparişi Onayla
-        </button>
+
+        <div class="summary-table-wrapper">
+          <table class="summary-table">
+            <thead>
+              <tr>
+                <th>Ürün</th>
+                <th class="summary-col-qty">Adet</th>
+                <th class="summary-col-unit">Birim fiyat</th>
+                <th class="summary-col-subtotal">Ara toplam</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for line in items %}
+                <tr>
+                  <td>
+                    {{ line.product.name }}
+                    {% if line.product.code %}
+                      <br><span class="muted">Kod: {{ line.product.code }}</span>
+                    {% endif %}
+                    {% if line.product.unit %}
+                      <br><span class="muted">Birim: {{ line.product.unit }}</span>
+                    {% endif %}
+                    {% if line.product.discount_percent or line.product.discount_price %}
+                      <br><span style="font-size:0.8rem; color:#e67e22;">
+                        İndirimli ürün
+                      </span>
+                    {% endif %}
+                  </td>
+
+                  <td class="summary-col-qty">
+                    <div class="qty-control" data-line-id="{{ line.id }}">
+                      <button type="button" class="qty-btn" data-qty-btn="minus">−</button>
+                      <input type="number"
+                             class="qty-input"
+                             name="qty_{{ line.id }}"
+                             min="1"
+                             value="{{ line.quantity }}">
+                      <button type="button" class="qty-btn" data-qty-btn="plus">+</button>
+                    </div>
+                  </td>
+
+                  <td class="summary-col-unit">
+                    {{ line.unit_price }} ₺
+                  </td>
+
+                  <td class="summary-col-subtotal">
+                    {{ line.line_total }} ₺
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3" class="summary-total-label">
+                  Toplam:
+                </td>
+                <td class="summary-total-value">
+                  {{ total }} ₺
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="summary-actions">
+          <button type="submit" class="primary-btn">
+            Siparişi Onayla
+          </button>
+        </div>
       </form>
     {% else %}
       <p>Bu sipariş için ürün bulunamadı.</p>
