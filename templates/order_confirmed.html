@@ -1,21 +1,139 @@
 {% extends "base.html" %}
-{% block title %}Order Confirmed{% endblock %}
+{% block title %}Sipariş Onaylandı{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Success page specific styles */
+
+  .order-success-card {
+    max-width: 700px;
+    margin: 24px auto;
+  }
+
+  .order-success-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .order-success-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #16a34a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 700;
+  }
+
+  .order-success-main-text {
+    margin-top: 4px;
+    font-size: 0.95rem;
+    color: #4b5563;
+  }
+
+  .order-success-info {
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-top: 14px;
+    margin-bottom: 8px;
+  }
+
+  .order-success-info-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 0.95rem;
+  }
+
+  .order-success-label {
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .order-success-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .order-success-note {
+    margin-top: 14px;
+    font-size: 0.9rem;
+    color: #6b7280;
+  }
+
+  /* Make links look like buttons using existing button styles */
+  .btn-link-as-button {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<h2>Thank you!</h2>
+<div class="page-wrapper">
+  <section class="section-card order-success-card">
+    <div class="order-success-header">
+      <div class="order-success-icon">✓</div>
+      <div>
+        <h2 class="section-title">Teşekkürler!</h2>
+        <p class="order-success-main-text">
+          Siparişiniz başarıyla alındı ve depomuza iletildi. En kısa sürede sizinle iletişime geçeceğiz.
+        </p>
+      </div>
+    </div>
 
-<p>Your order has been confirmed and sent to our warehouse.</p>
+    {% if order %}
+      <div class="order-success-info">
+        <div class="order-success-info-row">
+          <span class="order-success-label">Sipariş Numarası:</span>
+          <span>#{{ order.id }}</span>
+        </div>
+        <div class="order-success-info-row">
+          <span class="order-success-label">İsim:</span>
+          <span>{{ order.customer_name }}</span>
+        </div>
+      </div>
+    {% endif %}
 
-{% if order %}
-  <p><strong>Order ID:</strong> {{ order.id }}</p>
-  <p><strong>Name:</strong> {{ order.customer_name }}</p>
-{% endif %}
-<a href="{% url 'order_receipt_pdf' order.id %}" target="_blank">
-    Download Receipt (PDF)
-</a>
-<a href="{% url 'order_picking_pdf' order.id %}" class="btn btn-secondary" target="_blank">
-  Picking PDF
-</a>
+    <p class="order-success-main-text">
+      Sipariş fişinizi (makbuz) PDF olarak indirebilirsiniz. Fiş, sipariş detaylarınızı ve iletişim
+      bilgilerinizi içerir. Depomuz siparişinizi hazırladıktan sonra sizinle telefon veya mesaj ile
+      iletişime geçecektir.
+    </p>
 
-<p>You can now close this page.</p>
+    <div class="order-success-actions">
+      {% if order %}
+        {# Receipt PDF for the customer #}
+        <a href="{% url 'order_receipt_pdf' order.id %}"
+           target="_blank"
+           class="primary-btn btn-link-as-button">
+          Fişi PDF Olarak İndir
+        </a>
+
+        <!-- {# Picking PDF – internal use, you can remove this from customer view later if you want #}
+        <a href="{% url 'order_picking_pdf' order.id %}"
+           target="_blank"
+           class="primary-btn secondary-btn btn-link-as-button">
+          Depo İçin Picking PDF
+        </a> -->
+      {% endif %}
+    </div>
+
+    <p class="order-success-note">
+      Bu sayfayı kapatmadan önce sipariş numaranızı not edebilir veya fişi cihazınıza kaydedebilirsiniz.
+      Daha sonra yeni bir sipariş vermek isterseniz her zaman tekrar web sitemizi ziyaret edebilirsiniz.
+    </p>
+  </section>
+</div>
 {% endblock %}

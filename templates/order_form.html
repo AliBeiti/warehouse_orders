@@ -27,18 +27,18 @@ document.addEventListener("DOMContentLoaded", function () {
       activateTab(this.dataset.tabTarget);
     });
   });
-
-  // ----- LocalStorage helpers for cart -----
+  // ----- SessionStorage helpers for cart (persists only for this tab/session) -----
   const STORAGE_KEY = "order_cart_v1";
+  const STORAGE = window.sessionStorage;
 
   function loadCart() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = STORAGE.getItem(STORAGE_KEY);
       if (!raw) return {};
       const parsed = JSON.parse(raw);
       return parsed && typeof parsed === "object" ? parsed : {};
     } catch (e) {
-      console.warn("Could not parse cart from localStorage:", e);
+      console.warn("Could not parse cart from sessionStorage:", e);
       return {};
     }
   }
@@ -56,9 +56,9 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+      STORAGE.setItem(STORAGE_KEY, JSON.stringify(cart));
     } catch (e) {
-      console.warn("Could not save cart to localStorage:", e);
+      console.warn("Could not save cart to sessionStorage:", e);
     }
   }
 
@@ -409,7 +409,9 @@ document.addEventListener("DOMContentLoaded", function () {
                class="qty-input"
                name="qty_{{ p.id }}"
                min="0"
-               value="0">
+               value="0"
+               inputmode="numeric"
+               pattern="[0-9]*">
         <button type="button" class="qty-btn" data-qty-btn="plus">+</button>
       </div>
     </div>
@@ -477,7 +479,10 @@ document.addEventListener("DOMContentLoaded", function () {
                class="qty-input"
                name="qty_{{ p.id }}"
                min="0"
-               value="0">
+               value="0"
+               inputmode="numeric"
+               pattern="[0-9]*">
+               
         <button type="button" class="qty-btn" data-qty-btn="plus">+</button>
       </div>
     </div>

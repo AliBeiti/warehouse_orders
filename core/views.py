@@ -7,53 +7,57 @@ from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
 
 from io import BytesIO
-from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import (
-    SimpleDocTemplate,
-    Paragraph,
-    Spacer,
-    Table,
-    TableStyle,
-)
-from .pdf_utils import build_full_picking_pdf, send_order_picking_pdf_to_telegram
+# from reportlab.lib.pagesizes import A4
+# from reportlab.lib import colors
+# from reportlab.lib.styles import getSampleStyleSheet
+# from reportlab.platypus import (SimpleDocTemplate,
+#     Paragraph,
+#     Spacer,
+#     Table,
+#     TableStyle,
+# )
+from .pdf_utils import build_full_picking_pdf, send_order_picking_pdf_to_telegram, build_order_receipt_pdf
 
 import csv
 import io
 
 
 def generate_order_csv(order):
-    """Return CSV text for a single order in warehouse pick order."""
-    # Build items list sorted by pick_order
-    items = []
-    for item in order.items.select_related("product").all():
-        items.append({
-            "product": item.product,
-            "quantity": item.quantity,
-        })
+    """
+    Return CSV text for a single order in warehouse pick order.
 
-    items.sort(key=lambda x: (x["product"].pick_order, x["product"].name))
+    Columns:
+        RowNumber ; PickOrder ; ProductName ; ProductCode ; Quantity
+    """
+    # Get items already sorted by product picking order (and name as fallback)
+    ordered_items = (
+        order.items
+        .select_related("product")
+        .order_by("product__pick_order", "product__name")
+    )
 
     output = io.StringIO()
     writer = csv.writer(output, delimiter=';')
-    writer.writerow(["PickOrder", "ProductName", "ProductCode", "Quantity", "Unit"])
 
-    for item in items:
-        p = item["product"]
+    # Header row
+    writer.writerow(["SatırNo", "RafSırası", "ÜrünAdı", "ÜrünKodu", "Adet"])
+    #writer.writerow(["RowNumber", "PickOrder", "ProductName", "ProductCode", "Quantity"])
+
+    # Data rows
+    for idx, item in enumerate(ordered_items, start=1):
+        p = item.product
         writer.writerow([
-            p.pick_order,
-            p.name,
-            p.code or "",
-            item["quantity"],
-            p.unit or "",
+            idx,                 # RowNumber
+            p.pick_order,        # PickOrder
+            p.name,              # ProductName
+            p.code or "",        # ProductCode
+            item.quantity,       # Quantity
         ])
 
     csv_content = output.getvalue()
     output.close()
     return csv_content
 
-# Create your views here.
 def order_form(request):
     # All active products (used to read quantities from POST)
     products = Product.objects.filter(is_active=True)
@@ -140,7 +144,13 @@ def order_form(request):
         "main_categories": main_categories,
     })
 
-
+def get_picking_items(order):
+    return (
+        order.items
+        .select_related("product")
+        .filter(quantity__gt=0)  # IMPORTANT: exclude deleted/zero lines
+        .order_by("product__pick_order", "product__name")
+    )
 def order_success(request):
     order_id = request.session.get("last_order_id")
     if not order_id:
@@ -173,7 +183,7 @@ def order_success(request):
         total += line_total
 
         lines.append({
-            "order_item": oi,
+            "order_item": oi,       # <-- IMPORTANT: we keep the OrderItem here
             "product": product,
             "quantity": oi.quantity,
             "unit_price": unit_price,
@@ -204,22 +214,49 @@ def order_confirm(request):
     if order.is_confirmed:
         return render(request, "order_confirmed.html", {"order": order})
 
-    # Generate CSV and send via Telegram
+    # --- NEW: update item quantities from the summary form ---
+    for item in order.items.all():
+        field_name = f"qty_{item.id}"  # matches name="qty_{{ line.order_item.id }}"
+        if field_name not in request.POST:
+            continue
+
+        raw = request.POST.get(field_name)
+        try:
+            new_qty = int(raw)
+        except (TypeError, ValueError):
+            # Ignore invalid values and keep the old quantity
+            continue
+
+        if new_qty <= 0:
+            # Quantity 0 (or negative) -> remove this item from the order
+            item.quantity = 0
+            item.delete()
+            continue
+
+        if new_qty != item.quantity:
+            item.quantity = new_qty
+            item.save()
+
+    # If all items were removed, there is nothing to confirm
+    if not order.items.exists():
+        # You can change this behavior if you want
+        return redirect("order_form")
+
+    # Generate CSV and send via Telegram with UPDATED items
     csv_content = generate_order_csv(order)
     send_order_csv_via_telegram(order, csv_content)
-
+    
     # Mark as confirmed
     order.is_confirmed = True
     order.save()
-    send_order_picking_pdf_to_telegram(order)
 
-
-    # Optionally clear last_order_id from session (or keep it, up to you)
-    # request.session.pop("last_order_id", None)
-
+    # Send picking PDF after confirming (uses updated order)
+    # send_order_picking_pdf_to_telegram(order)
+    pdf_content = build_full_picking_pdf(order)
+    send_order_picking_pdf_to_telegram(order, pdf_content)
     return render(request, "order_confirmed.html", {"order": order})
 
-   
+
 def order_csv_admin(request, order_id):
     if not request.user.is_authenticated or not request.user.is_staff:
         return HttpResponseForbidden("Not allowed")
@@ -240,94 +277,17 @@ def order_csv_admin(request, order_id):
 #@login_required  # optional – remove if customers should access it without login
 def order_receipt_pdf(request, order_id):
     """
-    Generate a PDF receipt for the given order using ReportLab.
+    View wrapper: generate and return the order receipt PDF.
     """
     order = get_object_or_404(Order, pk=order_id)
 
     if not order.is_confirmed:
-        raise Http404("Receipt not available for unconfirmed orders.")
+        raise Http404("Bu sipariş için fiş henüz mevcut değil (onaylanmamış).")
 
-    # Create a BytesIO buffer
-    buffer = BytesIO()
+    pdf_bytes = build_order_receipt_pdf(order)
 
-    # Set up the PDF document
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        leftMargin=40,
-        rightMargin=40,
-        topMargin=40,
-        bottomMargin=40,
-    )
-
-    styles = getSampleStyleSheet()
-    elements = []
-
-    # --- Header / Title ---
-    title = f"Order Receipt #{order.id}"
-    elements.append(Paragraph(title, styles["Title"]))
-    elements.append(Spacer(1, 12))
-
-    # --- Order meta info ---
-    meta_text = (
-        f"Date: {order.created_at.strftime('%Y-%m-%d %H:%M')}<br/>"
-        f"Customer: {order.customer_name}"
-    )
-    if order.customer_phone:
-        meta_text += f"<br/>Phone: {order.customer_phone}"
-    if order.customer_email:
-        meta_text += f"<br/>Email: {order.customer_email}"
-
-    elements.append(Paragraph(meta_text, styles["Normal"]))
-    elements.append(Spacer(1, 12))
-
-    if order.customer_note:
-        note_text = f"<b>Customer Note:</b> {order.customer_note}"
-        elements.append(Paragraph(note_text, styles["Normal"]))
-        elements.append(Spacer(1, 12))
-
-    # --- Items table ---
-    data = [["#", "Product", "Quantity"]]
-
-    for i, item in enumerate(order.items.all(), start=1):
-        data.append([
-            str(i),
-            item.product.name,
-            str(item.quantity),
-        ])
-
-    table = Table(data, colWidths=[30, 300, 80])
-
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
-        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
-    ]))
-
-    elements.append(table)
-    elements.append(Spacer(1, 18))
-
-    # --- Footer text ---
-    footer_text = (
-        "Thank you for your purchase.<br/>"
-        "This receipt was generated automatically and is valid without signature."
-    )
-    elements.append(Paragraph(footer_text, styles["Normal"]))
-
-    # Build the PDF
-    doc.build(elements)
-
-    # Get the PDF value
-    pdf_value = buffer.getvalue()
-    buffer.close()
-
-    # Return as response
-    filename = f"order_{order.id}_receipt.pdf"
-    response = HttpResponse(pdf_value, content_type="application/pdf")
+    filename = f"order_{order.id}_fis.pdf"
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="{filename}"'
     return response
 

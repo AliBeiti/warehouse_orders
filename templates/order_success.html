@@ -120,9 +120,11 @@ document.addEventListener("DOMContentLoaded", function () {
                       <button type="button" class="qty-btn" data-qty-btn="minus">−</button>
                       <input type="number"
                              class="qty-input"
-                             name="qty_{{ line.id }}"
-                             min="1"
-                             value="{{ line.quantity }}">
+                             name="qty_{{ line.order_item.id }}"
+                             min="0"
+                             value="{{ line.quantity }}"
+                             inputmode="numeric"
+                             pattern="[0-9]*">
                       <button type="button" class="qty-btn" data-qty-btn="plus">+</button>
                     </div>
                   </td>
