@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse, HttpResponseForbidden, Http404
+from django.http import HttpResponse, HttpResponseForbidden, Http404, HttpResponseNotAllowed, JsonResponse
 from .models import Category, Product, Order, OrderItem
 from .telegram_utils import send_order_csv_via_telegram
 from decimal import Decimal
@@ -7,17 +7,11 @@ from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
 
 from io import BytesIO
-# from reportlab.lib.pagesizes import A4
-# from reportlab.lib import colors
-# from reportlab.lib.styles import getSampleStyleSheet
-# from reportlab.platypus import (SimpleDocTemplate,
-#     Paragraph,
-#     Spacer,
-#     Table,
-#     TableStyle,
-# )
 from .pdf_utils import build_full_picking_pdf, send_order_picking_pdf_to_telegram, build_order_receipt_pdf
 
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
 import csv
 import io
 
@@ -151,6 +145,7 @@ def get_picking_items(order):
         .filter(quantity__gt=0)  # IMPORTANT: exclude deleted/zero lines
         .order_by("product__pick_order", "product__name")
     )
+
 def order_success(request):
     order_id = request.session.get("last_order_id")
     if not order_id:
@@ -274,7 +269,7 @@ def order_csv_admin(request, order_id):
     return response
 
 
-#@login_required  # optional – remove if customers should access it without login
+#@login_required  
 def order_receipt_pdf(request, order_id):
     """
     View wrapper: generate and return the order receipt PDF.
@@ -291,7 +286,7 @@ def order_receipt_pdf(request, order_id):
     response["Content-Disposition"] = f'inline; filename="{filename}"'
     return response
 
-
+@login_required  
 def order_picking_pdf(request, order_id):
     """
     Return the picking PDF for a given order as an HTTP response,
@@ -309,3 +304,76 @@ def order_picking_pdf(request, order_id):
         f'inline; filename="order_{order.id}_picking.pdf"'
     )
     return response
+
+
+
+def check_print_token(request):
+    token = request.headers.get("X-PRINT-TOKEN")
+    if not token or token != settings.PRINT_API_TOKEN:
+        return False
+    return True
+
+def orders_to_print(request):
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+
+    if not check_print_token(request):
+        return HttpResponseForbidden("Forbidden")
+
+    orders = (
+        Order.objects
+        .filter(is_confirmed=True, printed=False)
+        .order_by("created_at")[:20]
+    )
+
+    data = []
+    for o in orders:
+        data.append({
+            "id": o.id,
+            "created_at": o.created_at.isoformat(),
+            # Optional: include fields you want on the print agent (for logging)
+            # "customer_name": o.customer_name,
+            # ...
+        })
+
+    return JsonResponse(data, safe=False)
+
+
+@csrf_exempt
+def order_picking_pdf_for_print(request, order_id):
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+
+    if not check_print_token(request):
+        return HttpResponseForbidden("Forbidden")
+
+    try:
+        order = Order.objects.get(id=order_id, is_confirmed=True)
+    except Order.DoesNotExist:
+        return HttpResponse(status=404)
+
+    pdf_bytes = build_full_picking_pdf(order)
+
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    # filename is not so important for the script, but nice to have:
+    response["Content-Disposition"] = f'inline; filename="picking_order_{order.id}.pdf"'
+    return response
+
+@csrf_exempt
+def mark_order_printed(request, order_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    if not check_print_token(request):
+        return HttpResponseForbidden("Forbidden")
+
+    try:
+        order = Order.objects.get(id=order_id)
+    except Order.DoesNotExist:
+        return JsonResponse({"error": "Order not found"}, status=404)
+
+    order.printed = True
+    order.printed_at = timezone.now()
+    order.save(update_fields=["printed", "printed_at"])
+
+    return JsonResponse({"status": "ok", "order_id": order.id})

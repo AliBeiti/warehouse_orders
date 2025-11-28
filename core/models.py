@@ -1,6 +1,6 @@
 from django.db import models
 from decimal import Decimal
-
+from django.utils import timezone
 
 class Category(models.Model):
     """
@@ -123,6 +123,9 @@ class Order(models.Model):
     customer_email = models.EmailField(blank=True)
     customer_note = models.TextField(blank=True)
     is_confirmed = models.BooleanField(default=False)
+
+    printed = models.BooleanField(default=False)
+    printed_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"Order #{self.id} - {self.customer_name} ({self.created_at:%Y-%m-%d})"

@@ -130,7 +130,7 @@ STATICFILES_DIRS = [ BASE_DIR / "static" ]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-import os 
+
 
 import os
 
@@ -140,6 +140,8 @@ import os
 TELEGRAM_BOT_TOKEN = "7856806831:AAFgLo09GHNSojk7BFcwWaX-esp_gB74njw"
 TELEGRAM_CHAT_ID = "@masterbestkozmetic"      # your chat ID or group ID
 
+
+PRINT_API_TOKEN = os.environ.get("PRINT_API_TOKEN", "SECRET1234567890987654321")
 CSRF_TRUSTED_ORIGINS = [
     "https://*.ngrok-free.app",
     "https://*.ngrok-free.dev",
