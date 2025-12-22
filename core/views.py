@@ -352,7 +352,7 @@ def order_picking_pdf_for_print(request, order_id):
     except Order.DoesNotExist:
         return HttpResponse(status=404)
 
-    pdf_bytes = build_full_picking_pdf(order)
+    pdf_bytes = build_order_receipt_pdf(order)
 
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
     # filename is not so important for the script, but nice to have:

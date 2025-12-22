@@ -17,21 +17,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+import os
+import environ
+
+# Initialize environment variables
+env = environ.Env(DEBUG=(bool, True))
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-j2kqu+=$0sowh@kact3!zdk%g)5d*#uo8poeb0vg0379g)hj)w'
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    ".ngrok-free.app",
-    ".ngrok-free.dev",
-]
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
 
 
 # Application definition
@@ -132,16 +135,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 
-import os
 
-# TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")  # or hard-code for testing
-# TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")      # your chat ID or group ID
-
-TELEGRAM_BOT_TOKEN = "7856806831:AAFgLo09GHNSojk7BFcwWaX-esp_gB74njw"
-TELEGRAM_CHAT_ID = "@masterbestkozmetic"      # your chat ID or group ID
+TELEGRAM_BOT_TOKEN = env('TELEGRAM_BOT_TOKEN')
+TELEGRAM_CHAT_ID = env('TELEGRAM_CHAT_ID')
 
 
-PRINT_API_TOKEN = os.environ.get("PRINT_API_TOKEN", "SECRET1234567890987654321")
+PRINT_API_TOKEN = env('PRINT_API_TOKEN')
 CSRF_TRUSTED_ORIGINS = [
     "https://*.ngrok-free.app",
     "https://*.ngrok-free.dev",
