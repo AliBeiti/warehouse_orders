@@ -2,7 +2,7 @@ import time
 import os
 import requests
 
-BASE_URL = "https://dona-interlobular-tunefully.ngrok-free.dev"  # change to your real domain
+BASE_URL = "https://dona-interlobular-tunefully.ngrok-free.dev"  # change to real domain
 PRINT_API_TOKEN = "SECRET1234567890987654321"
 
 HEADERS = {
@@ -76,3 +76,4 @@ def main_loop():
 
 if __name__ == "__main__":
     main_loop()
+
