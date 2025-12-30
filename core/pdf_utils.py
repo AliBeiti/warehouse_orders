@@ -458,6 +458,33 @@ import requests
 TELEGRAM_BOT_TOKEN = getattr(settings, "TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = getattr(settings, "TELEGRAM_CHAT_ID", "")
 
+def send_order_receipt_pdf_to_telegram(order: Order, pdf_content: bytes):
+    """
+    Send customer receipt PDF to Telegram.
+    """
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
+
+    files = {
+        "document": (
+            f"order_{order.id}_receipt.pdf",
+            pdf_content,
+            "application/pdf",
+        )
+    }
+
+    data = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "caption": f"📄 Müşteri Fişi - Sipariş #{order.id}\n"
+                   f"👤 {order.customer_name}\n"
+                   f"📞 {order.customer_phone}",
+    }
+
+    try:
+        response = requests.post(url, data=data, files=files)
+        response.raise_for_status()
+    except Exception as e:
+        # Log error but don't fail the order
+        print(f"Failed to send receipt to Telegram: {e}")
 
 def send_order_picking_pdf_to_telegram(order: Order,pdf_content):
     """

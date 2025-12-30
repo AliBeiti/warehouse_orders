@@ -258,13 +258,13 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ----- Sticky submit button triggers form submit -----
-  const stickyBtn = document.getElementById("sticky-submit-btn");
-  if (stickyBtn) {
-    stickyBtn.addEventListener("click", function () {
-      const form = document.querySelector(".page-wrapper form");
-      if (form) form.submit();
-    });
-  }
+  // const stickyBtn = document.getElementById("sticky-submit-btn");
+  // if (stickyBtn) {
+  //   stickyBtn.addEventListener("click", function () {
+  //     const form = document.querySelector(".page-wrapper form");
+  //     if (form) form.submit();
+  //   });
+  // }
   // ----- Update floating cart badge -----
   function updateCartBadge() {
     const cart = loadCart();
@@ -302,6 +302,56 @@ document.addEventListener("DOMContentLoaded", function () {
   
   // Call on page load to restore cart state
   updateCartBadge();
+  // ----- Quantity Preset Buttons -----
+document.querySelectorAll('.qty-preset').forEach(function(btn) {
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    
+    const qty = parseInt(this.dataset.qty);
+    const control = this.closest('.qty-control');
+    const input = control.querySelector('.qty-input');
+    
+    if (input) {
+      input.value = qty;
+      saveCart();
+      updateCartBadge();
+      
+      // Visual feedback
+      this.style.background = '#27ae60';
+      this.style.color = 'white';
+      setTimeout(() => {
+        this.style.background = '';
+        this.style.color = '';
+      }, 200);
+    }
+  });
+  });
+  // ----- Empty Cart Warning -----
+const orderForm = document.querySelector('.page-wrapper form');
+if (orderForm) {
+  orderForm.addEventListener('submit', function(e) {
+    const cart = loadCart();
+    
+    // Count total items
+    let totalItems = 0;
+    for (const pid in cart) {
+      totalItems += cart[pid];
+    }
+    
+    if (totalItems === 0) {
+      e.preventDefault(); // Stop form submission
+      
+      // Show warning
+      alert('⚠️ Sepetiniz boş!\n\nLütfen en az bir ürün seçiniz.');
+      
+      // Scroll to products section
+      document.querySelector('.section-card').scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  });
+}
 });
 </script>
 {% endblock %}
@@ -317,7 +367,40 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="cart-total" id="cartTotal">0.00 ₺</div>
     </div>
   </div>
+  <!-- Progress Bar -->
+  <div class="progress-bar">
+    <div class="progress-step completed">
+      <div class="step-number">1</div>
+      <div class="step-label">Bilgiler</div>
+    </div>
+    <div class="progress-step active">
+      <div class="step-number">2</div>
+      <div class="step-label">Ürünler</div>
+    </div>
+    <div class="progress-step">
+      <div class="step-number">3</div>
+      <div class="step-label">Onay</div>
+    </div>
+  </div>
 
+  <!-- Customer Info Display (NEW!) -->
+  <div class="customer-info-display">
+    <h3>👤 Merhaba, {{ customer_name }}!</h3>
+    <div class="customer-details">
+      <div class="detail-item">
+        <span class="detail-label">Telefon</span>
+        <span class="detail-value">📞 {{ customer_phone }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">E-posta</span>
+        <span class="detail-value">✉️ {{ customer_email|default:"Belirtilmemiş" }}</span>
+      </div>
+    </div>
+    <a href="{% url 'customer_info' %}" class="edit-info-btn">
+      ✏️ Bilgileri Düzenle
+    </a>
+  </div>
+  
   {# ----- Error messages ----- #}
   {% if error_list %}
     <div class="section-card error-box">
@@ -332,7 +415,7 @@ document.addEventListener("DOMContentLoaded", function () {
   <form method="POST">
     {% csrf_token %}
 
-    {# ----- Customer information ----- #}
+    <!-- {# ----- Customer information ----- #}
     <section class="section-card section-customer">
       <div class="section-header">
         <h2 class="section-title">Müşteri bilgileri</h2>
@@ -367,7 +450,7 @@ document.addEventListener("DOMContentLoaded", function () {
         <textarea name="customer_note" rows="3"
                   style="width: 100%; max-width: 600px;">{{ customer_note|default_if_none:'' }}</textarea>
       </div>
-    </section>
+    </section> -->
 
     {# ----- Products ----- #}
     <section class="section-card">
@@ -469,6 +552,12 @@ document.addEventListener("DOMContentLoaded", function () {
                inputmode="numeric"
                pattern="[0-9]*">
         <button type="button" class="qty-btn" data-qty-btn="plus">+</button>
+      <div class="qty-presets">
+        <button type="button" class="qty-preset" data-qty="1">1</button>
+        <button type="button" class="qty-preset" data-qty="3">3</button>
+        <button type="button" class="qty-preset" data-qty="6">6</button>
+        <button type="button" class="qty-preset" data-qty="12">12</button>
+      </div>
       </div>
     </div>
   </div>
@@ -541,6 +630,12 @@ document.addEventListener("DOMContentLoaded", function () {
                pattern="[0-9]*">
                
         <button type="button" class="qty-btn" data-qty-btn="plus">+</button>
+        <div class="qty-presets">
+          <button type="button" class="qty-preset" data-qty="1">1</button>
+          <button type="button" class="qty-preset" data-qty="3">3</button>
+          <button type="button" class="qty-preset" data-qty="6">6</button>
+          <button type="button" class="qty-preset" data-qty="12">12</button>
+        </div>
       </div>
     </div>
   </div>
@@ -564,18 +659,18 @@ document.addEventListener("DOMContentLoaded", function () {
     {# ----- Static submit button at bottom (for desktop) ----- #}
     <div class="form-actions">
       <button type="submit" class="primary-btn">
-        Siparişi Gönder
+        Devam Et
       </button>
     </div>
   </form>
 
   {# ----- Sticky submit button (always visible) ----- #}
-  <div class="sticky-submit-bar">
+  <!-- <div class="sticky-submit-bar">
     <div class="sticky-submit-inner">
       <button type="button" class="primary-btn" id="sticky-submit-btn">
         Siparişi Gönder
       </button>
     </div>
-  </div>
+  </div> -->
 </div>
 {% endblock %}

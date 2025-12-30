@@ -7,7 +7,7 @@ from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
 
 from io import BytesIO
-from .pdf_utils import build_full_picking_pdf, send_order_picking_pdf_to_telegram, build_order_receipt_pdf
+from .pdf_utils import build_full_picking_pdf, send_order_picking_pdf_to_telegram, build_order_receipt_pdf, send_order_receipt_pdf_to_telegram
 
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
@@ -52,7 +52,55 @@ def generate_order_csv(order):
     output.close()
     return csv_content
 
+
+def customer_info(request):
+    """Step 1: Collect customer information"""
+    
+    if request.method == "POST":
+        # Validate customer info
+        customer_name = request.POST.get("customer_name", "").strip()
+        customer_phone = request.POST.get("customer_phone", "").strip()
+        customer_email = request.POST.get("customer_email", "").strip()
+        customer_note = request.POST.get("customer_note", "").strip()
+        
+        errors = []
+        if not customer_name:
+            errors.append("İsim alanı zorunludur.")
+        if not customer_phone:
+            errors.append("Telefon alanı zorunludur.")
+        
+        if errors:
+            return render(request, "customer_info.html", {
+                "error_list": errors,
+                "customer_name": customer_name,
+                "customer_phone": customer_phone,
+                "customer_email": customer_email,
+                "customer_note": customer_note,
+            })
+        
+        # Save to session
+        request.session["customer_name"] = customer_name
+        request.session["customer_phone"] = customer_phone
+        request.session["customer_email"] = customer_email
+        request.session["customer_note"] = customer_note
+        
+        # Redirect to product selection
+        return redirect("order_form")
+    
+    # GET request - show form with saved data
+    return render(request, "customer_info.html", {
+        "customer_name": request.session.get("customer_name", ""),
+        "customer_phone": request.session.get("customer_phone", ""),
+        "customer_email": request.session.get("customer_email", ""),
+        "customer_note": request.session.get("customer_note", ""),
+    })
+
+
 def order_form(request):
+    # Check if customer info exists in session - if not, redirect to step 1
+    if not request.session.get("customer_name"):
+        return redirect("customer_info")
+    
     # All active products (used to read quantities from POST)
     products = Product.objects.filter(is_active=True)
 
@@ -65,18 +113,13 @@ def order_form(request):
     )
 
     if request.method == "POST":
-        # 1) Read customer info
-        customer_name = request.POST.get("customer_name", "").strip()
-        customer_phone = request.POST.get("customer_phone", "").strip()
-        customer_email = request.POST.get("customer_email", "").strip()
-        customer_note = request.POST.get("customer_note", "").strip()
+        # 1) Get customer info from SESSION (not POST anymore)
+        customer_name = request.session.get("customer_name")
+        customer_phone = request.session.get("customer_phone")
+        customer_email = request.session.get("customer_email", "")
+        customer_note = request.session.get("customer_note", "")
 
         errors = []
-
-        if not customer_name:
-            errors.append("İsim alanı zorunludur.")
-        if not customer_phone:
-            errors.append("Telefon alanı zorunludur.")
 
         # 2) Read products and quantities
         selected_items = []
@@ -99,15 +142,11 @@ def order_form(request):
         if not selected_items:
             errors.append("Lütfen en az bir ürün seçiniz.")
 
-        # if there are errors, re-render form with messages + customer info
+        # if there are errors, re-render form with messages
         if errors:
             return render(request, "order_form.html", {
                 "main_categories": main_categories,
                 "error_list": errors,
-                "customer_name": customer_name,
-                "customer_phone": customer_phone,
-                "customer_email": customer_email,
-                "customer_note": customer_note,
             })
 
         # 3) Create Order
@@ -128,15 +167,17 @@ def order_form(request):
 
         # 5) Store order id in session for success / CSV
         request.session["last_order_id"] = order.id
-        # optional: later we can put a session cart here
-        # request.session["order_items"] = ...
 
         return redirect("order_success")
 
-    # GET request
+    # GET request - show products form with customer info from session
     return render(request, "order_form.html", {
         "main_categories": main_categories,
+        "customer_name": request.session.get("customer_name"),
+        "customer_phone": request.session.get("customer_phone"),
+        "customer_email": request.session.get("customer_email"),
     })
+
 
 def get_picking_items(order):
     return (
@@ -249,6 +290,9 @@ def order_confirm(request):
     # send_order_picking_pdf_to_telegram(order)
     pdf_content = build_full_picking_pdf(order)
     send_order_picking_pdf_to_telegram(order, pdf_content)
+
+    receipt_pdf = build_order_receipt_pdf(order)
+    send_order_receipt_pdf_to_telegram(order, receipt_pdf)
     return render(request, "order_confirmed.html", {"order": order})
 
 

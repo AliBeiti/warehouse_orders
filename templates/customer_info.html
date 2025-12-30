@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Sipariş Bilgileri{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+  
+  <!-- Progress Bar -->
+  <div class="progress-bar">
+    <div class="progress-step active">
+      <div class="step-number">1</div>
+      <div class="step-label">Bilgiler</div>
+    </div>
+    <div class="progress-step">
+      <div class="step-number">2</div>
+      <div class="step-label">Ürünler</div>
+    </div>
+    <div class="progress-step">
+      <div class="step-number">3</div>
+      <div class="step-label">Onay</div>
+    </div>
+  </div>
+
+  <!-- Welcome Section -->
+  <section class="section-card">
+    <div class="section-header">
+      <h1 class="section-title">Hoş Geldiniz!</h1>
+      <p class="section-subtitle">Sipariş vermek için lütfen bilgilerinizi giriniz.</p>
+    </div>
+
+    <!-- Instructions Box -->
+    <div class="info-box">
+      <h3>📝 Sipariş Nasıl Verilir?</h3>
+      <ol class="instruction-list">
+        <li><strong>Bilgilerinizi girin:</strong> İsim, telefon ve e-posta adresinizi doldurun</li>
+        <li><strong>Ürünleri seçin:</strong> İstediğiniz ürünleri ve miktarları belirleyin</li>
+        <li><strong>Kontrol edin:</strong> Sipariş özetini inceleyin ve düzeltin</li>
+        <li><strong>Onaylayın:</strong> Siparişinizi onaylayın ve bize gönderelim!</li>
+      </ol>
+
+      <div class="info-note">
+        <strong>💡 İpucu:</strong> Bilgileriniz bir sonraki adıma kadar saklanır. 
+        İstediğiniz zaman geri dönüp düzeltebilirsiniz.
+      </div>
+    </div>
+  </section>
+
+  <!-- Customer Info Form -->
+<section class="section-card">
+  <div class="section-header">
+    <h2 class="section-title">İletişim Bilgileri</h2>
+    <p class="section-subtitle">Sipariş takibi için gereklidir.</p>
+  </div>
+
+  {% if error_list %}
+    <div class="error-box">
+      <ul class="error-list">
+        {% for e in error_list %}
+          <li>{{ e }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <form method="POST" action="{% url 'customer_info' %}">
+    {% csrf_token %}
+
+    <div class="customer-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="customer_name">
+            İsim Soyisim<span class="required-star">*</span>
+          </label>
+          <input 
+            type="text" 
+            id="customer_name"
+            name="customer_name" 
+            required
+            value="{{ customer_name|default_if_none:'' }}"
+            placeholder="Ahmet Yılmaz"
+            class="form-control">
+          <small class="form-text">Fatura üzerinde görünecektir</small>
+        </div>
+
+        <div class="form-group">
+          <label for="customer_phone">
+            Telefon<span class="required-star">*</span>
+          </label>
+          <input 
+            type="tel" 
+            id="customer_phone"
+            name="customer_phone" 
+            required
+            value="{{ customer_phone|default_if_none:'' }}"
+            placeholder="0532 123 45 67"
+            class="form-control">
+          <small class="form-text">SMS ile bilgilendirme yapılabilir</small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="customer_email">E-posta</label>
+          <input 
+            type="email" 
+            id="customer_email"
+            name="customer_email"
+            value="{{ customer_email|default_if_none:'' }}"
+            placeholder="ornek@email.com"
+            class="form-control">
+          <small class="form-text">Sipariş özeti e-posta ile gönderilir (isteğe bağlı)</small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group full-width">
+          <label for="customer_note">Notlar (İsteğe Bağlı)</label>
+          <textarea 
+            id="customer_note"
+            name="customer_note" 
+            rows="4"
+            placeholder="Özel talepleriniz, teslimat talimatları veya notlarınız..."
+            class="form-control">{{ customer_note|default_if_none:'' }}</textarea>
+          <small class="form-text">Teslimat talimatları, tercihler vb.</small>
+        </div>
+      </div>
+
+      <div class="form-actions-center">
+        <button type="submit" class="primary-btn btn-large">
+          Devam Et: Ürün Seçimi →
+        </button>
+      </div>
+    </div>
+  </form>
+</section>
+
+  <!-- Help Section -->
+  <section class="section-card help-section">
+    <h3>❓ Yardıma mı ihtiyacınız var?</h3>
+    <p>Sorularınız için bize ulaşın:</p>
+    <div class="contact-info">
+      <div>📞 <strong>Telefon:</strong> 0532 XXX XX XX</div>
+      <div>💬 <strong>WhatsApp:</strong> 0532 XXX XX XX</div>
+      <div>✉️ <strong>E-posta:</strong> info@masterbest.com</div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}
