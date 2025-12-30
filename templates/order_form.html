@@ -73,6 +73,13 @@ document.addEventListener("DOMContentLoaded", function () {
       input.value = savedCart[pid];
     }
   });
+  // Listen to manual input changes
+  document.querySelectorAll(".qty-input").forEach(function (input) {
+    input.addEventListener("change", function() {
+      saveCart();
+      updateCartBadge();
+    });
+  });
 
   // ----- Quantity +/- with press-and-hold (using pointer events) -----
   function changeQty(input, delta) {
@@ -84,6 +91,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (value < min) value = min;
     input.value = value;
     saveCart();
+    updateCartBadge();
   }
 
   document.querySelectorAll(".qty-btn").forEach(function (btn) {
@@ -97,6 +105,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const input = wrapper.querySelector(".qty-input");
       if (!input) return;
       changeQty(input, delta);
+      updateCartBadge()
     }
 
     function start(e) {
@@ -256,12 +265,58 @@ document.addEventListener("DOMContentLoaded", function () {
       if (form) form.submit();
     });
   }
+  // ----- Update floating cart badge -----
+  function updateCartBadge() {
+    const cart = loadCart();
+    let totalItems = 0;
+    let totalPrice = 0;
+    
+    // Count items and calculate total
+    for (const pid in cart) {
+      const qty = cart[pid];
+      totalItems += qty;
+      
+      // Find the product price
+      const productCard = document.querySelector(`[data-product-id="${pid}"]`);
+      if (productCard) {
+        const priceText = productCard.dataset.productPrice;
+        if (priceText) {
+          const price = parseFloat(priceText);
+          totalPrice += price * qty;
+        }
+      }
+    }
+    
+    // Update badge
+    document.getElementById('cartCount').textContent = totalItems;
+    document.getElementById('cartTotal').textContent = totalPrice.toFixed(2) + ' ₺';
+    
+    // Hide badge if cart is empty
+    const badge = document.getElementById('floatingCart');
+    if (totalItems === 0) {
+      badge.style.display = 'none';
+    } else {
+      badge.style.display = 'flex';
+    }
+  }
+  
+  // Call on page load to restore cart state
+  updateCartBadge();
 });
 </script>
 {% endblock %}
 
 {% block content %}
 <div class="page-wrapper">
+
+  <!-- Floating Cart Badge-->
+   <div class="floating-cart" id="floatingCart">
+    <div class="cart-icon">🛒</div>
+    <div class="cart-details">
+      <span class="cart-count" id="cartCount">0</span> ürün
+      <div class="cart-total" id="cartTotal">0.00 ₺</div>
+    </div>
+  </div>
 
   {# ----- Error messages ----- #}
   {% if error_list %}
@@ -364,7 +419,8 @@ document.addEventListener("DOMContentLoaded", function () {
                         <div class="card"
      data-product-id="{{ p.id }}"
      data-product-name="{{ p.name }}"
-     data-product-code="{{ p.code }}">
+     data-product-code="{{ p.code }}"
+     data-product-price="{{ p.final_price|default:0 }}">
   <div class="imgbox">
     {% if p.image %}
       <img src="{{ p.image.url }}" alt="{{ p.name }}" loading="lazy">
@@ -434,7 +490,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     <div class="card"
      data-product-id="{{ p.id }}"
      data-product-name="{{ p.name }}"
-     data-product-code="{{ p.code }}">
+     data-product-code="{{ p.code }}"
+     data-product-price="{{ p.final_price|default:0 }}">
   <div class="imgbox">
     {% if p.image %}
       <img src="{{ p.image.url }}" alt="{{ p.name }}" loading="lazy">
