@@ -4,7 +4,76 @@
 {% block extra_head %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  // Quantity +/- on summary page
+  
+  // ----- Discount tiers (passed from Django) -----
+  const discountTiers = JSON.parse('{{ discount_tiers|escapejs }}') || [];
+  
+  // ----- Real-time total calculation -----
+  function calculateTotals() {
+    let subtotal = 0;
+    
+    // Calculate subtotal from all rows
+    document.querySelectorAll('.summary-table tbody tr').forEach(function(row) {
+      const qtyInput = row.querySelector('.qty-input');
+      const unitPriceCell = row.querySelector('.summary-col-unit');
+      const lineSubtotalCell = row.querySelector('.summary-col-subtotal');
+      
+      if (!qtyInput || !unitPriceCell) return;
+      
+      const qty = parseInt(qtyInput.value) || 0;
+      const unitPriceText = unitPriceCell.textContent.trim();
+      const unitPrice = parseFloat(unitPriceText.replace(' ₺', '').replace(',', '.')) || 0;
+      
+      const lineTotal = qty * unitPrice;
+      subtotal += lineTotal;
+      
+      // Update line total
+      if (lineSubtotalCell) {
+        lineSubtotalCell.textContent = lineTotal.toFixed(2) + ' ₺';
+      }
+    });
+    
+    // Find applicable discount
+    let discount = 0;
+    for (let i = discountTiers.length - 1; i >= 0; i--) {
+      if (subtotal >= parseFloat(discountTiers[i].threshold)) {
+        discount = parseFloat(discountTiers[i].discount_percentage);
+        break;
+      }
+    }
+    
+    const discountAmount = subtotal * (discount / 100);
+    const finalTotal = subtotal - discountAmount;
+    
+    // Update footer
+    const tfoot = document.querySelector('.summary-table tfoot');
+    
+    if (discount > 0) {
+      tfoot.innerHTML = `
+        <tr>
+          <td colspan="3" class="summary-total-label">Ara Toplam:</td>
+          <td class="summary-total-value">${subtotal.toFixed(2)} ₺</td>
+        </tr>
+        <tr class="discount-row">
+          <td colspan="3" class="summary-discount-label">İndirim (%${discount}):</td>
+          <td class="summary-discount-value">-${discountAmount.toFixed(2)} ₺</td>
+        </tr>
+        <tr class="final-total-row">
+          <td colspan="3" class="summary-total-label"><strong>Toplam:</strong></td>
+          <td class="summary-total-value"><strong>${finalTotal.toFixed(2)} ₺</strong></td>
+        </tr>
+      `;
+    } else {
+      tfoot.innerHTML = `
+        <tr>
+          <td colspan="3" class="summary-total-label"><strong>Toplam:</strong></td>
+          <td class="summary-total-value"><strong>${finalTotal.toFixed(2)} ₺</strong></td>
+        </tr>
+      `;
+    }
+  }
+
+  // Quantity +/- buttons
   function changeQty(input, delta) {
     const min = parseInt(input.getAttribute("min") || "1", 10);
     let value = parseInt(input.value || "0", 10);
@@ -13,6 +82,8 @@ document.addEventListener("DOMContentLoaded", function () {
     value += delta;
     if (value < min) value = min;
     input.value = value;
+    
+    calculateTotals();
   }
 
   document.querySelectorAll(".qty-btn").forEach(function (btn) {
@@ -36,7 +107,14 @@ document.addEventListener("DOMContentLoaded", function () {
     input.addEventListener("click", function () {
       this.select();
     });
+    // Listen to keyboard input changes
+    input.addEventListener("input", calculateTotals);
+    input.addEventListener("change", calculateTotals);
   });
+  
+  // Calculate on page load
+  calculateTotals();
+  
 });
 </script>
 {% endblock %}
@@ -100,7 +178,7 @@ document.addEventListener("DOMContentLoaded", function () {
     {% endif %}
 
     {% if items %}
-      <form method="post" action="{% url 'order_confirm' %}">
+      <form method="post" action="{% url 'order_confirm' customer_type=customer_type %}">
         {% csrf_token %}
 
         <div class="summary-table-wrapper">
@@ -156,14 +234,42 @@ document.addEventListener("DOMContentLoaded", function () {
               {% endfor %}
             </tbody>
             <tfoot>
-              <tr>
+              <!-- <tr>
                 <td colspan="3" class="summary-total-label">
-                  Toplam:
+                  Ara Toplam:
                 </td>
                 <td class="summary-total-value">
-                  {{ total }} ₺
+                  {{ subtotal }} ₺
                 </td>
               </tr>
+              
+              {% if discount_info.discount_percentage > 0 %}
+              <tr class="discount-row">
+                <td colspan="3" class="summary-discount-label">
+                  İndirim (%{{ discount_info.discount_percentage }}):
+                </td>
+                <td class="summary-discount-value">
+                  -{{ discount_info.discount_amount }} ₺
+                </td>
+              </tr>
+              <tr class="final-total-row">
+                <td colspan="3" class="summary-total-label">
+                  <strong>Toplam:</strong>
+                </td>
+                <td class="summary-total-value">
+                  <strong>{{ discount_info.final_total }} ₺</strong>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="3" class="summary-total-label">
+                  <strong>Toplam:</strong>
+                </td>
+                <td class="summary-total-value">
+                  <strong>{{ discount_info.final_total }} ₺</strong>
+                </td>
+              </tr>
+              {% endif %} -->
             </tfoot>
           </table>
         </div>

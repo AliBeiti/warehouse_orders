@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 
-from .models import Category, Product, Order, OrderItem
+from .models import Category, Product, Order, OrderItem, DiscountTier
 
 
 # ==============================
@@ -79,8 +79,19 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    # 🔹 Keep exactly what you had, plus maybe we can add is_confirmed later if you want
-    list_display = ("id", "customer_name", "created_at", "csv_download_link")
+    list_display = (
+        "id", 
+        "customer_name", 
+        "customer_type",           # ADD THIS
+        "created_at", 
+        "is_confirmed",            # ADD THIS
+        "subtotal",                # ADD THIS
+        "discount_percentage",     # ADD THIS
+        "final_total",             # ADD THIS
+        "printed",                 # ADD THIS
+        "csv_download_link"
+    )
+    list_filter = ("customer_type", "is_confirmed", "printed")  # ADD THIS
     date_hierarchy = "created_at"
     inlines = [OrderItemInline]
 
@@ -98,3 +109,11 @@ class OrderItemAdmin(admin.ModelAdmin):
     list_display = ("order", "product", "quantity")
     list_filter = ("order__created_at", "product__category")
     search_fields = ("order__id", "product__name")
+
+
+@admin.register(DiscountTier)
+class DiscountTierAdmin(admin.ModelAdmin):
+    list_display = ['customer_type', 'threshold', 'discount_percentage', 'is_active', 'created_at']
+    list_filter = ['customer_type', 'is_active']
+    list_editable = ['is_active']
+    ordering = ['customer_type', 'threshold']

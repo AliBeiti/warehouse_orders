@@ -662,7 +662,7 @@ def build_order_receipt_pdf(order: Order) -> bytes:
         Paragraph("Toplamı", table_header_style),
     ]]
 
-    genel_toplam = Decimal("0.00")
+    ara_toplam = Decimal("0.00")
     ordered_items = (
         order.items
         .select_related("product")
@@ -675,7 +675,7 @@ def build_order_receipt_pdf(order: Order) -> bytes:
         # unit price: final_price -> price -> 0
         unit_price = product.final_price or product.price or Decimal("0.00")
         line_total = (unit_price or Decimal("0.00")) * qty
-        genel_toplam += line_total
+        ara_toplam += line_total
 
         unit_price_str = f"{unit_price:.2f} ₺"
         line_total_str = f"{line_total:.2f} ₺"
@@ -687,7 +687,50 @@ def build_order_receipt_pdf(order: Order) -> bytes:
             Paragraph(unit_price_str, table_cell_right_style),
             Paragraph(line_total_str, table_cell_right_style),
         ])
-    # Total row
+    
+    # Subtotal row
+    data.append([
+        "",
+        "",
+        "",
+        Paragraph("<b>Ara Toplam:</b>", table_cell_right_style),
+        Paragraph(f"<b>{ara_toplam:.2f} ₺</b>", table_cell_right_style),
+    ])
+    
+    # Discount row (if applicable)
+    if order.discount_percentage > 0:
+        discount_amount = order.discount_amount or Decimal("0.00")
+        data.append([
+            "",
+            "",
+            "",
+            Paragraph(f"<b>İndirim (%{order.discount_percentage}):</b>", table_cell_right_style),
+            Paragraph(f"<b style='color:#27ae60'>-{discount_amount:.2f} ₺</b>", table_cell_right_style),
+        ])
+    
+    # Final total row
+    genel_toplam = order.final_total or ara_toplam
+    data.append([
+        "",
+        "",
+        "",
+        Paragraph("<b>Genel Toplam:</b>", table_cell_right_style),
+        Paragraph(f"<b>{genel_toplam:.2f} ₺</b>", table_cell_right_style),
+    ])
+    
+    # Discount row (if applicable)
+    if order.discount_percentage > 0:
+        discount_amount = order.discount_amount or Decimal("0.00")
+        data.append([
+            "",
+            "",
+            "",
+            Paragraph(f"<b>İndirim (%{order.discount_percentage}):</b>", table_cell_right_style),
+            Paragraph(f"<b style='color:#27ae60'>-{discount_amount:.2f} ₺</b>", table_cell_right_style),
+        ])
+    
+    # Final total row
+    genel_toplam = order.final_total or ara_toplam
     data.append([
         "",
         "",

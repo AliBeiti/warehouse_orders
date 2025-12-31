@@ -122,10 +122,21 @@ class Order(models.Model):
     customer_phone = models.CharField(max_length=50, blank=True)
     customer_email = models.EmailField(blank=True)
     customer_note = models.TextField(blank=True)
+    
+    customer_type = models.CharField(
+        max_length=20,
+        choices=[('retail', 'Perakende'), ('wholesale', 'Toptan')],
+        default='retail'
+    )
+    
     is_confirmed = models.BooleanField(default=False)
-
     printed = models.BooleanField(default=False)
     printed_at = models.DateTimeField(null=True, blank=True)
+    
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    final_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     def __str__(self):
         return f"Order #{self.id} - {self.customer_name} ({self.created_at:%Y-%m-%d})"
@@ -145,3 +156,23 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product.name} x {self.quantity}"
+
+class DiscountTier(models.Model):
+    threshold = models.DecimalField(max_digits=10, decimal_places=2, help_text="Minimum order amount in TL")
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, help_text="Discount percentage")
+    customer_type = models.CharField(
+        max_length=20,
+        choices=[('retail', 'Perakende'), ('wholesale', 'Toptan')],
+        default='retail',
+        help_text="Customer type this discount applies to"
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['customer_type', 'threshold']
+        verbose_name = 'Discount Tier'
+        verbose_name_plural = 'Discount Tiers'
+    
+    def __str__(self):
+        return f"{self.get_customer_type_display()} - {self.threshold} TL → {self.discount_percentage}%"

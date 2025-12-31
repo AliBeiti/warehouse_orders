@@ -44,6 +44,31 @@
     </div>
   </section>
 
+
+  <!-- Discount Information Box -->
+{% if discount_tiers %}
+<div class="info-box discount-box">
+  <h3>🎁 İndirim Fırsatları</h3>
+  <p>Sipariş tutarınıza göre otomatik indirim kazanın!</p>
+  
+  <div class="discount-tiers">
+    {% for tier in discount_tiers %}
+    <div class="discount-tier-item">
+      <span class="tier-threshold">{{ tier.threshold|floatformat:0 }} TL ve üzeri</span>
+      <span class="tier-arrow">→</span>
+      <span class="tier-discount">%{{ tier.discount_percentage|floatformat:0 }} İndirim</span>
+    </div>
+    {% endfor %}
+  </div>
+
+
+  <div class="info-note">
+    <strong>💰 Önemli:</strong> İndirimler sepet toplamınıza göre otomatik olarak uygulanır. 
+    Sipariş özet sayfasında indirimli fiyatınızı görebilirsiniz.
+  </div>
+</div>
+{% endif %}
+
   <!-- Customer Info Form -->
 <section class="section-card">
   <div class="section-header">
@@ -61,7 +86,7 @@
     </div>
   {% endif %}
 
-  <form method="POST" action="{% url 'customer_info' %}">
+  <form method="POST" action="{% url 'customer_info' customer_type=request.resolver_match.kwargs.customer_type %}">
     {% csrf_token %}
 
     <div class="customer-form">
@@ -138,8 +163,8 @@
     <h3>❓ Yardıma mı ihtiyacınız var?</h3>
     <p>Sorularınız için bize ulaşın:</p>
     <div class="contact-info">
-      <div>📞 <strong>Telefon:</strong> 0532 XXX XX XX</div>
-      <div>💬 <strong>WhatsApp:</strong> 0532 XXX XX XX</div>
+      <div>📞 <strong>Telefon:</strong> 0530 077 37 72</div>
+      <div style="color: #25D366;">💬 <strong>WhatsApp:</strong> 0530 077 37 72</div>
       <div>✉️ <strong>E-posta:</strong> info@masterbest.com</div>
     </div>
   </section>

@@ -1,11 +1,12 @@
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, HttpResponseForbidden, Http404, HttpResponseNotAllowed, JsonResponse
-from .models import Category, Product, Order, OrderItem
+from .models import Category, Product, Order, OrderItem, DiscountTier
 from .telegram_utils import send_order_csv_via_telegram
 from decimal import Decimal
 from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
-
+from django.core.serializers.json import DjangoJSONEncoder
 from io import BytesIO
 from .pdf_utils import build_full_picking_pdf, send_order_picking_pdf_to_telegram, build_order_receipt_pdf, send_order_receipt_pdf_to_telegram
 
@@ -53,11 +54,21 @@ def generate_order_csv(order):
     return csv_content
 
 
-def customer_info(request):
-    """Step 1: Collect customer information"""
+def customer_info(request, customer_type='retail'):
+    # Validate customer_type
+    if customer_type not in ['retail', 'wholesale']:
+        customer_type = 'retail'
+    
+    # Store in session
+    request.session['customer_type'] = customer_type
+    
+    # Get discount tiers for this customer type
+    discount_tiers = DiscountTier.objects.filter(
+    is_active=True,
+    customer_type=customer_type
+    ).order_by('threshold').values('threshold', 'discount_percentage')
     
     if request.method == "POST":
-        # Validate customer info
         customer_name = request.POST.get("customer_name", "").strip()
         customer_phone = request.POST.get("customer_phone", "").strip()
         customer_email = request.POST.get("customer_email", "").strip()
@@ -76,35 +87,37 @@ def customer_info(request):
                 "customer_phone": customer_phone,
                 "customer_email": customer_email,
                 "customer_note": customer_note,
+                "discount_tiers": discount_tiers,
             })
         
-        # Save to session
         request.session["customer_name"] = customer_name
         request.session["customer_phone"] = customer_phone
         request.session["customer_email"] = customer_email
         request.session["customer_note"] = customer_note
         
-        # Redirect to product selection
-        return redirect("order_form")
+        return redirect("order_form", customer_type=customer_type)
     
-    # GET request - show form with saved data
     return render(request, "customer_info.html", {
         "customer_name": request.session.get("customer_name", ""),
         "customer_phone": request.session.get("customer_phone", ""),
         "customer_email": request.session.get("customer_email", ""),
         "customer_note": request.session.get("customer_note", ""),
+        "discount_tiers": discount_tiers,
     })
 
-
-def order_form(request):
-    # Check if customer info exists in session - if not, redirect to step 1
-    if not request.session.get("customer_name"):
-        return redirect("customer_info")
+def order_form(request, customer_type='retail'):
+    # Validate customer_type
+    if customer_type not in ['retail', 'wholesale']:
+        customer_type = 'retail'
     
-    # All active products (used to read quantities from POST)
+    # Store in session
+    request.session['customer_type'] = customer_type
+    
+    # Check if customer info exists in session
+    if not request.session.get("customer_name"):
+        return redirect("customer_info", customer_type=customer_type)
+    
     products = Product.objects.filter(is_active=True)
-
-    # Main categories (tabs): parent is NULL
     main_categories = (
         Category.objects
         .filter(parent__isnull=True)
@@ -113,15 +126,12 @@ def order_form(request):
     )
 
     if request.method == "POST":
-        # 1) Get customer info from SESSION (not POST anymore)
         customer_name = request.session.get("customer_name")
         customer_phone = request.session.get("customer_phone")
         customer_email = request.session.get("customer_email", "")
         customer_note = request.session.get("customer_note", "")
 
         errors = []
-
-        # 2) Read products and quantities
         selected_items = []
 
         for p in products:
@@ -142,22 +152,22 @@ def order_form(request):
         if not selected_items:
             errors.append("Lütfen en az bir ürün seçiniz.")
 
-        # if there are errors, re-render form with messages
         if errors:
             return render(request, "order_form.html", {
                 "main_categories": main_categories,
                 "error_list": errors,
+                "discount_tiers": json.dumps(list(discount_tiers), cls=DjangoJSONEncoder),
             })
 
-        # 3) Create Order
+        # Create Order with customer_type
         order = Order.objects.create(
             customer_name=customer_name,
             customer_phone=customer_phone,
             customer_email=customer_email,
             customer_note=customer_note,
+            customer_type=customer_type,
         )
 
-        # 4) Create OrderItems
         for item in selected_items:
             OrderItem.objects.create(
                 order=order,
@@ -165,17 +175,23 @@ def order_form(request):
                 quantity=item["quantity"],
             )
 
-        # 5) Store order id in session for success / CSV
         request.session["last_order_id"] = order.id
 
-        return redirect("order_success")
+        return redirect("order_success", customer_type=customer_type)
 
-    # GET request - show products form with customer info from session
+    # Get discount tiers for this customer type
+    discount_tiers = DiscountTier.objects.filter(
+        is_active=True,
+        customer_type=customer_type
+    ).order_by('threshold').values('threshold', 'discount_percentage')
+    
     return render(request, "order_form.html", {
         "main_categories": main_categories,
         "customer_name": request.session.get("customer_name"),
         "customer_phone": request.session.get("customer_phone"),
         "customer_email": request.session.get("customer_email"),
+        "discount_tiers": json.dumps(list(discount_tiers), cls=DjangoJSONEncoder),
+        "customer_type": customer_type,
     })
 
 
@@ -187,27 +203,29 @@ def get_picking_items(order):
         .order_by("product__pick_order", "product__name")
     )
 
-def order_success(request):
+
+def order_success(request, customer_type='retail'):
+    # Validate customer_type
+    if customer_type not in ['retail', 'wholesale']:
+        customer_type = 'retail'
+    
     order_id = request.session.get("last_order_id")
     if not order_id:
-        # no recent order in session
-        return redirect("order_form")
+        return redirect("customer_info", customer_type=customer_type)
 
     try:
         order = Order.objects.prefetch_related("items__product").get(id=order_id)
     except Order.DoesNotExist:
-        return redirect("order_form")
+        return redirect("customer_info", customer_type=customer_type)
 
-    # Build display lines sorted by warehouse pick order
     raw_items = list(order.items.select_related("product").all())
 
     lines = []
-    total = Decimal("0.00")
+    subtotal = Decimal("0.00")
 
     for oi in sorted(raw_items, key=lambda i: i.product.pick_order):
         product = oi.product
 
-        # unit_price = discounted price if available, otherwise base price, otherwise 0
         if product.final_price is not None:
             unit_price = product.final_price
         elif product.price is not None:
@@ -216,43 +234,61 @@ def order_success(request):
             unit_price = Decimal("0.00")
 
         line_total = unit_price * oi.quantity
-        total += line_total
+        subtotal += line_total
 
         lines.append({
-            "order_item": oi,       # <-- IMPORTANT: we keep the OrderItem here
+            "order_item": oi,
             "product": product,
             "quantity": oi.quantity,
             "unit_price": unit_price,
             "line_total": line_total,
         })
 
+    # Calculate discount
+    discount_info = calculate_discount(subtotal, customer_type)
+    
+    # ADD THESE LINES FOR JSON:
+    discount_tiers = DiscountTier.objects.filter(
+        is_active=True,
+        customer_type=customer_type
+    ).order_by('threshold').values('threshold', 'discount_percentage')
+    
+    discount_tiers_json = json.dumps(list(discount_tiers), cls=DjangoJSONEncoder)
+
     context = {
         "order": order,
         "items": lines,
-        "total": total,
+        "subtotal": subtotal,
+        "discount_info": discount_info,
+        "customer_type": customer_type,
+        "discount_tiers": discount_tiers_json,  # ADD THIS
     }
     return render(request, "order_success.html", context)
 
-def order_confirm(request):
+
+def order_confirm(request, customer_type='retail'):
     if request.method != "POST":
-        return redirect("order_form")
+        return redirect("customer_info", customer_type=customer_type)
+
+    # Validate customer_type
+    if customer_type not in ['retail', 'wholesale']:
+        customer_type = 'retail'
 
     order_id = request.session.get("last_order_id")
     if not order_id:
-        return redirect("order_form")
+        return redirect("customer_info", customer_type=customer_type)
 
     try:
         order = Order.objects.prefetch_related("items__product").get(id=order_id)
     except Order.DoesNotExist:
-        return redirect("order_form")
+        return redirect("customer_info", customer_type=customer_type)
 
-    # If already confirmed, just show final page
     if order.is_confirmed:
         return render(request, "order_confirmed.html", {"order": order})
 
-    # --- NEW: update item quantities from the summary form ---
+    # Update item quantities
     for item in order.items.all():
-        field_name = f"qty_{item.id}"  # matches name="qty_{{ line.order_item.id }}"
+        field_name = f"qty_{item.id}"
         if field_name not in request.POST:
             continue
 
@@ -260,11 +296,9 @@ def order_confirm(request):
         try:
             new_qty = int(raw)
         except (TypeError, ValueError):
-            # Ignore invalid values and keep the old quantity
             continue
 
         if new_qty <= 0:
-            # Quantity 0 (or negative) -> remove this item from the order
             item.quantity = 0
             item.delete()
             continue
@@ -273,27 +307,38 @@ def order_confirm(request):
             item.quantity = new_qty
             item.save()
 
-    # If all items were removed, there is nothing to confirm
     if not order.items.exists():
-        # You can change this behavior if you want
-        return redirect("order_form")
+        return redirect("customer_info", customer_type=customer_type)
 
-    # Generate CSV and send via Telegram with UPDATED items
-    csv_content = generate_order_csv(order)
-    send_order_csv_via_telegram(order, csv_content)
+    # Calculate and save discount
+    subtotal = Decimal("0.00")
+    for item in order.items.all():
+        product = item.product
+        unit_price = product.final_price or product.price or Decimal("0.00")
+        subtotal += unit_price * item.quantity
     
-    # Mark as confirmed
+    discount_info = calculate_discount(subtotal, customer_type)
+    
+    order.subtotal = subtotal
+    order.discount_percentage = discount_info['discount_percentage']
+    order.discount_amount = discount_info['discount_amount']
+    order.final_total = discount_info['final_total']
+    order.customer_type = customer_type
     order.is_confirmed = True
     order.save()
 
-    # Send picking PDF after confirming (uses updated order)
-    # send_order_picking_pdf_to_telegram(order)
+    # Generate CSV and PDFs
+    csv_content = generate_order_csv(order)
+    send_order_csv_via_telegram(order, csv_content)
+    
     pdf_content = build_full_picking_pdf(order)
     send_order_picking_pdf_to_telegram(order, pdf_content)
 
     receipt_pdf = build_order_receipt_pdf(order)
     send_order_receipt_pdf_to_telegram(order, receipt_pdf)
+    
     return render(request, "order_confirmed.html", {"order": order})
+
 
 
 def order_csv_admin(request, order_id):
@@ -421,3 +466,46 @@ def mark_order_printed(request, order_id):
     order.save(update_fields=["printed", "printed_at"])
 
     return JsonResponse({"status": "ok", "order_id": order.id})
+
+
+def calculate_discount(subtotal, customer_type='retail'):
+    """Calculate discount based on order subtotal and customer type"""
+    discount_tiers = DiscountTier.objects.filter(
+        is_active=True,
+        customer_type=customer_type
+    ).order_by('-threshold')
+    
+    for tier in discount_tiers:
+        if subtotal >= tier.threshold:
+            discount_amount = subtotal * (tier.discount_percentage / 100)
+            return {
+                'tier': tier,
+                'discount_percentage': tier.discount_percentage,
+                'discount_amount': discount_amount,
+                'final_total': subtotal - discount_amount,
+                'next_tier': get_next_tier(subtotal, discount_tiers)
+            }
+    
+    # No discount applies
+    return {
+        'tier': None,
+        'discount_percentage': 0,
+        'discount_amount': 0,
+        'final_total': subtotal,
+        'next_tier': get_next_tier(subtotal, discount_tiers)
+    }
+
+
+def get_next_tier(current_total, tiers):
+    """Get the next available discount tier"""
+    for tier in reversed(tiers):
+        if current_total < tier.threshold:
+            remaining = tier.threshold - current_total
+            return {
+                'threshold': tier.threshold,
+                'percentage': tier.discount_percentage,
+                'remaining': remaining
+            }
+    return None
+
+
