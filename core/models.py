@@ -21,6 +21,13 @@ class Category(models.Model):
         help_text="Leave empty for MAIN categories. Set a parent to make this a SUB category."
     )
 
+    color_code = models.CharField(
+        max_length=7, 
+        default='#CCCCCC', 
+        blank=True,
+        help_text="Hex color code for subcategory bar (e.g., #FF0000 for red)"
+    )
+
     class Meta:
         ordering = ("display_order", "name")
 

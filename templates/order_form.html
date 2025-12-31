@@ -615,8 +615,8 @@ if (orderForm) {
             {% if main.subcategories.all %}
               {% for sub in main.subcategories.all %}
                 {# details: now CLOSED by default (no "open" attribute) #}
-                <details class="subcategory-details" style="margin-bottom: 16px;">
-                  <summary>
+                <details class="subcategory-details" style="margin-bottom: 16px; border-left: 5px solid {{ sub.color_code|default:'#CCCCCC' }};">
+                  <summary style="background: linear-gradient(to right, {{ sub.color_code|default:'#CCCCCC' }}40, transparent);">
                     {{ sub.name }}
                   </summary>
 

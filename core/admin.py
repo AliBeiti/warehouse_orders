@@ -12,9 +12,9 @@ from .models import Category, Product, Order, OrderItem, DiscountTier
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     # 🔹 We keep what you had and add parent + is_main_display for clarity
-    list_display = ("name", "parent", "display_order", "is_main_display")
+    list_display = ("name", "parent","color_code", "display_order", "is_main_display")
     ordering = ("display_order", "name")
-    list_editable = ("display_order",)
+    list_editable = ("display_order","color_code")
     list_filter = ("parent",)
     search_fields = ("name",)
 
