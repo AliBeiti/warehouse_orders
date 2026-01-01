@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 
-from .models import Category, Product, Order, OrderItem, DiscountTier
+from .models import Category, Product, Order, OrderItem, DiscountTier, ColorPalette
 
 
 # ==============================
@@ -11,10 +11,9 @@ from .models import Category, Product, Order, OrderItem, DiscountTier
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    # 🔹 We keep what you had and add parent + is_main_display for clarity
-    list_display = ("name", "parent","color_code", "display_order", "is_main_display")
+    list_display = ("name", "parent", "color_palette", "display_order", "is_main_display")
     ordering = ("display_order", "name")
-    list_editable = ("display_order","color_code")
+    list_editable = ("display_order",)
     list_filter = ("parent",)
     search_fields = ("name",)
 
@@ -26,7 +25,6 @@ class CategoryAdmin(admin.ModelAdmin):
 
     is_main_display.boolean = True
     is_main_display.short_description = "Main category"
-
 
 # ==============================
 # PRODUCT ADMIN
@@ -117,3 +115,10 @@ class DiscountTierAdmin(admin.ModelAdmin):
     list_filter = ['customer_type', 'is_active']
     list_editable = ['is_active']
     ordering = ['customer_type', 'threshold']
+
+@admin.register(ColorPalette)
+class ColorPaletteAdmin(admin.ModelAdmin):
+    list_display = ['name', 'effect_type', 'color_preview', 'created_at']
+    list_filter = ['effect_type']
+    search_fields = ['name']
+    ordering = ['name']

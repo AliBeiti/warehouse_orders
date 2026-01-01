@@ -1308,3 +1308,75 @@ summary::marker {
 .subcategory-details[open] summary {
   background: transparent !important;
 }
+
+/* Shimmer/Glitter effect for subcategories */
+.shimmer-effect summary {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shimmer shine wave - lighter */
+.shimmer-effect summary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 3s infinite;
+  pointer-events: none;
+}
+
+/* More glitter particles - denser */
+.shimmer-effect summary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    radial-gradient(circle, white 1px, transparent 1px),
+    radial-gradient(circle, rgba(255,255,255,0.9) 1px, transparent 1px),
+    radial-gradient(circle, rgba(255,255,255,0.7) 1px, transparent 1px),
+    radial-gradient(circle, white 1px, transparent 1px),
+    radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px),
+    radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px);
+  background-size: 30px 30px, 45px 45px, 60px 60px, 35px 35px, 50px 50px, 70px 70px;
+  background-position: 0 0, 20px 30px, 50px 80px, 10px 50px, 70px 20px, 90px 60px;
+  animation: glitter 4s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes glitter {
+  0% {
+    opacity: 0.6;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}

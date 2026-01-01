@@ -614,11 +614,48 @@ if (orderForm) {
 
             {% if main.subcategories.all %}
               {% for sub in main.subcategories.all %}
-                {# details: now CLOSED by default (no "open" attribute) #}
-                <details class="subcategory-details" style="margin-bottom: 16px; border-left: 5px solid {{ sub.color_code|default:'#CCCCCC' }};">
-                  <summary style="background: linear-gradient(to right, {{ sub.color_code|default:'#CCCCCC' }}40, transparent);">
-                    {{ sub.name }}
-                  </summary>
+                {# Build color gradient based on palette #}
+                {% if sub.color_palette %}
+                  {% with palette=sub.color_palette %}
+                    {% if palette.effect_type == 'solid' %}
+                      <details class="subcategory-details" style="margin-bottom: 16px; border-left: 5px solid {{ palette.colors.0 }};">
+                        <summary style="background-color: {{ palette.colors.0 }};">
+                          {{ sub.name }}
+                        </summary>
+                    {% elif palette.effect_type == 'gradient-light' %}
+                      <details class="subcategory-details" style="margin-bottom: 16px; border-left: 5px solid {{ palette.colors.0 }};">
+                        <summary style="background: linear-gradient(to right, {% for color in palette.colors %}{{ color }}20{% if not forloop.last %}, {% endif %}{% endfor %}, transparent);">
+                          {{ sub.name }}
+                        </summary>
+                    {% elif palette.effect_type == 'gradient-medium' %}
+                      <details class="subcategory-details" style="margin-bottom: 16px; border-left: 5px solid {{ palette.colors.0 }};">
+                        <summary style="background: linear-gradient(to right, {% for color in palette.colors %}{{ color }}40{% if not forloop.last %}, {% endif %}{% endfor %}, transparent);">
+                          {{ sub.name }}
+                        </summary>
+                    {% elif palette.effect_type == 'gradient-strong' %}
+                      <details class="subcategory-details" style="margin-bottom: 16px; border-left: 5px solid {{ palette.colors.0 }};">
+                        <summary style="background: linear-gradient(to right, {% for color in palette.colors %}{{ color }}80{% if not forloop.last %}, {% endif %}{% endfor %}, transparent);">
+                          {{ sub.name }}
+                        </summary>
+                    {% elif palette.effect_type == 'shimmer' %}
+                      <details class="subcategory-details shimmer-effect" style="margin-bottom: 16px; border-left: 5px solid {{ palette.colors.0 }};">
+                        <summary style="background: linear-gradient(to right, {% for color in palette.colors %}{{ color }}80{% if not forloop.last %}, {% endif %}{% endfor %}, transparent);">
+                          {{ sub.name }}
+                        </summary>
+                    {% elif palette.effect_type == 'linear' %}
+                      <details class="subcategory-details" style="margin-bottom: 16px; border-left: 5px solid {{ palette.colors.0 }};">
+                        <summary style="background: linear-gradient(to right, {% for color in palette.colors %}{{ color }}{% if not forloop.last %}, {% endif %}{% endfor %});">
+                          {{ sub.name }}
+                        </summary>
+                    {% endif %}
+                  {% endwith %}
+                {% else %}
+                  {# Default if no palette assigned #}
+                  <details class="subcategory-details" style="margin-bottom: 16px;">
+                    <summary>
+                      {{ sub.name }}
+                    </summary>
+                {% endif %}
 
                   <div class="grid" style="margin-top: 8px;">
                     {% for p in sub.products.all %}

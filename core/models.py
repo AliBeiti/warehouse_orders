@@ -21,11 +21,14 @@ class Category(models.Model):
         help_text="Leave empty for MAIN categories. Set a parent to make this a SUB category."
     )
 
-    color_code = models.CharField(
-        max_length=7, 
-        default='#CCCCCC', 
+    # Color palette for subcategories
+    color_palette = models.ForeignKey(
+        'ColorPalette',
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
-        help_text="Hex color code for subcategory bar (e.g., #FF0000 for red)"
+        related_name='categories',
+        help_text="Color scheme for this subcategory bar"
     )
 
     class Meta:
@@ -44,7 +47,6 @@ class Category(models.Model):
     @property
     def is_sub(self):
         return self.parent is not None
-
 
 class Product(models.Model):
     category = models.ForeignKey(
@@ -183,3 +185,46 @@ class DiscountTier(models.Model):
     
     def __str__(self):
         return f"{self.get_customer_type_display()} - {self.threshold} TL → {self.discount_percentage}%"
+    
+
+class ColorPalette(models.Model):
+    name = models.CharField(
+        max_length=100, 
+        help_text="e.g., 'Red Shimmer', 'Rainbow Gradient', 'Ocean Blues'"
+    )
+    
+    colors = models.JSONField(
+        default=list,
+        help_text="Array of hex colors: [\"#FF0000\", \"#FFFF00\", \"#00FF00\"]"
+    )
+    
+    EFFECT_CHOICES = [
+        ('solid', 'Solid Color'),
+        ('gradient-light', 'Light Gradient (20% opacity)'),
+        ('gradient-medium', 'Medium Gradient (40% opacity)'),
+        ('gradient-strong', 'Strong Gradient (80% opacity)'),
+        ('shimmer', 'Shimmer/Glitter Effect'),
+        ('linear', 'Linear Multi-color'),
+    ]
+    
+    effect_type = models.CharField(
+        max_length=20,
+        choices=EFFECT_CHOICES,
+        default='gradient-medium',
+        help_text="Visual effect to apply"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Color Palette'
+        verbose_name_plural = 'Color Palettes'
+    
+    def color_preview(self):
+        """Display colors in admin list"""
+        return ', '.join(self.colors) if self.colors else 'No colors'
+    color_preview.short_description = 'Colors'
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_effect_type_display()})"
